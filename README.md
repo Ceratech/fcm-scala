@@ -1,6 +1,9 @@
-# Firebase Cloud Messaging wrapper for Play Scala [![Build Status](https://travis-ci.org/Ceratech/fcm-scala.svg?branch=master)](https://travis-ci.org/Ceratech/fcm-scala)
+# Firebase Cloud Messaging wrapper for Play Scala 
 
-This small Scala Library makes it easy to send a notification through the FCM HTTP API; it's pretty basic but allows:
+[![Build Status](https://travis-ci.org/Ceratech/fcm-scala.svg?branch=master)](https://travis-ci.org/Ceratech/fcm-scala)
+[ ![Download](https://api.bintray.com/packages/ceratech/maven/fcm-scala/images/download.svg) ](https://bintray.com/ceratech/maven/fcm-scala/_latestVersion)
+
+This small Scala Library makes it easy to send a notification through the FCM HTTP API. It allows you to:
 
 * Send a message to single/multiple devices
 * Handle updated tokens
