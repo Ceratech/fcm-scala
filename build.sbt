@@ -11,6 +11,8 @@ lazy val root = (project in file(".")).
 
     name := "fcm-scala",
 
+    bintrayOrganization := Some("ceratech"),
+
     libraryDependencies ++= Seq(
       playWs,
       playJson,

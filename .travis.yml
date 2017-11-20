@@ -1,7 +1,27 @@
 language: scala
+
 scala:
   - 2.12.3
+
 jdk:
   - openjdk8
 
-script: sbt ++$TRAVIS_SCALA_VERSION test
+cache:
+  directories:
+    - $HOME/.m2/repository
+    - $HOME/.sbt
+    - $HOME/.ivy2
+
+script:
+  - sbt ++$TRAVIS_SCALA_VERSION test
+
+deploy:
+  provider: script
+  script: sbt ++$TRAVIS_SCALA_VERSION deploy
+  on:
+    branch: master
+
+env:
+  global:
+  - secure: wPsNu3bB6aRq1gu89Kc5RhpZixJ0Z/yHGvuHOHQUCnmwNwH5IZocR7u8VQQfYLWhMcG3jJ1Wm8Ed+jZ4oHRmlM4LhCf9sClm7Q7xfmU+zCXMITyQ8MJ7RmZBIgWnhFagWORM7gaTJDU9Iwy0KfD0S8QqIM5NuCVMCXiQzOMJaEieS4Eu0VWo3XWKcgLUjU9KQ5GutMnKSmbD1Umn+jaNcVOffFxQF2/hQlxYawVvEN812lDPht1A3KB4RXfgYH48s9eQ6csdRV1Y807AIuDpT0+hhBFjNZc9gpJgWnSSGxJNLEEcvYlj1TuHQ07vDhXk72tPWy09nYl8ACbJjV8BXHovqJ/CkeYsupH2cZBCFhdcFDaRDJqDWrdxUb6+pFM3sPt2f+lnuAXfOEprPnr8NQwCKMbpAZVm2ycnXYCHDfI6Q1sKGoyWZPoC2D7KPjv9zQUlgpnVtzKclSJRF0NzbPtD0W6085P3OLe6xxQaopi5v580Tsr63gCPDQtgiQrK3TcJCyJMAA1pmxgIn8f6rHaZmXhXNNOECXwDV+whzqC6O5izKvcCdnywCzzNRXg79HN0ocRve/bIQAWCerrJyKk+vRGdSLql7nqPvV4euoqY66sQluvBaE9DZWOc6B49KeUkUjfwW11Wgou1UezWPf3XTXCXJolnzF47XLJojn4=
+  - secure: U6074OUwal5XkwrIbct6J9XWE6y4YDYpHCvGDizccza3GLIpBHN/CyS9JiA7sm/Rdm3AUv37qV0JstY2/KH+IWeuij9pj+JQZyqCf9ZJGYjHwkLBpKZABcRzWSdV/5wJWPA4rRpGJ0ZZrJOAVLSG/YJmzs0F9/emGvmwKyhfvEzhTMwIRg3/LsdgyTDXsPlbNEC/pAZGhpdIO0jLKjbLJhtGJQeoQnr2kZgZUn5xgeDqaeLwbKJaux8+Kzj5B63SNXx9Gv98aQZFAae5kvAn1OX29js9YJu/a88HbTYUqa3Ant6+mP2T+KqA8IHmv8Om8cjH4rmwH2h0Y+JFmB/xAwaX7zF3Cl0xOnjYJHVksESrhbTXutAAvOOBsXfQgR5eCRMTJbkPylkpXXGcnihbcHjxJ5jUBB6DXxPHuJmKNHbngbRPv/Uolyvwa02hSRYhmEM+qg98VjzP4Gu1q9ndm8J/naHRGuHLgei/zLTHJsyCm4N9vH4dshSlpeoapPg8s5uGEdSH7zc4Z7YvdEG92abP1wXlYTAqXs0WWL4Leck/4Kmr0aA6R0lMn6io66Zp0M1uptDxGncdTBiIaBGjU/LQn8wsD//k7VClX0+3tqd6+BheGIYPmq4JRfqLSIPntIoFA4lRVLHQ8ceEBPUtVgkoS/JfEkT8rx/DNdXe7cU=
