@@ -12,7 +12,7 @@ This small Scala Library makes it easy to send a notification through the FCM HT
 ## Requirements
 
 * Play 2.6.x
-* Scala 2.12.x
+* Scala 2.11.x / 2.12.x
 
 ## Usage
 
@@ -26,7 +26,11 @@ fcm {
 }
 ```
 
-Implement the trait `io.ceratech.fcm.TokenRepository` in your codebase to handle updated/deleted tokens from the FCM server. The library expects an instance of the trait to be injectable.
+Implement the trait `io.ceratech.fcm.TokenRepository` in your codebase to handle updated/deleted tokens from the FCM server. The library expects an instance of the trait to be injectable. E.g. add the binding in code:
+
+```scala
+bind(classOf[TokenRepository]).to(classOf[MyTokenRepository])
+```
 
 Inject an instance of `io.ceratech.fcm.FcmSender` into your desired class and call `sendNotification(FcmNotification, token)`.
 
