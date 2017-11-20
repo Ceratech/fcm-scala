@@ -20,6 +20,7 @@ deploy:
   script: sbt ++$TRAVIS_SCALA_VERSION publish
   skip_cleanup: true
   on:
+    tags: true
     branch: master
 
 env:
