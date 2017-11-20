@@ -10,6 +10,9 @@ lazy val root = (project in file(".")).
       scalaVersion := "2.12.3"
     )),
 
+    crossScalaVersions := Seq("2.12.3", "2.11.11"),
+    autoScalaLibrary := true,
+
     name := "fcm-scala",
 
     bintrayOrganization := Some("ceratech"),
