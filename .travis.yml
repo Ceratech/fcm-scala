@@ -14,7 +14,11 @@ cache:
     - $HOME/.ivy2
 
 script:
-  - sbt ++$TRAVIS_SCALA_VERSION test
+  - sbt ++$TRAVIS_SCALA_VERSION clean coverage test coverageReport &&
+    sbt coverageAggregate
+
+after_success:
+  - sbt coveralls
 
 deploy:
   provider: script
