@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/Ceratech/fcm-scala.svg?branch=master)](https://travis-ci.org/Ceratech/fcm-scala)
 [ ![Download](https://api.bintray.com/packages/ceratech/maven/fcm-scala/images/download.svg) ](https://bintray.com/ceratech/maven/fcm-scala/_latestVersion)
+[![Coverage Status](https://coveralls.io/repos/github/Ceratech/fcm-scala/badge.svg?branch=master)](https://coveralls.io/github/Ceratech/fcm-scala?branch=master)
 
 This small Scala Library makes it easy to send a notification through the FCM HTTP API. It allows you to:
 
