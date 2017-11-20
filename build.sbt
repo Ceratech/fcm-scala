@@ -12,6 +12,7 @@ lazy val root = (project in file(".")).
     name := "fcm-scala",
 
     bintrayOrganization := Some("ceratech"),
+    licenses += ("Apache-2.0", url("http://apache.org/licenses/LICENSE-2.0")),
 
     libraryDependencies ++= Seq(
       playWs,

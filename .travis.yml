@@ -17,7 +17,7 @@ script:
 
 deploy:
   provider: script
-  script: sbt ++$TRAVIS_SCALA_VERSION deploy
+  script: sbt ++$TRAVIS_SCALA_VERSION publish
   skip_cleanup: true
   on:
     branch: master
