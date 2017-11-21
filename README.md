@@ -17,6 +17,8 @@ This small Scala Library makes it easy to send a notification through the FCM HT
 
 ## Usage
 
+### Configuring using Play
+
 In your `application.conf` add the following configuration:
 
 ```
@@ -27,12 +29,30 @@ fcm {
 }
 ```
 
+Bind the `PlayFcmConfigProvider` dependency to read the configuration from the `application.conf`:
+
+```scala
+bind(classOf[FcmConfigProvider]).to(classOf[PlayFcmConfigProvider])
+```
+
+### Manual configuration
+
+Provide an implementation of the `FcmConfigProvider` trait and bind it manually:
+
+```scala
+bind(classOf[FcmConfigProvider]).to(classOf[MyFcmConfigProvider])
+```
+
+### Token repository
+
 Implement the trait `io.ceratech.fcm.TokenRepository` in your codebase to handle updated/deleted tokens from the FCM server. The library expects an instance of the trait to be injectable. E.g. add the binding in code:
 
 ```scala
 bind(classOf[TokenRepository]).to(classOf[MyTokenRepository])
 ```
 
+### Sending notifications
+
 Inject an instance of `io.ceratech.fcm.FcmSender` into your desired class and call `sendNotification(FcmNotification, token)`.
 
-Note: you also need to configure your Play application to use the [WS Client](https://www.playframework.com/documentation/2.6.x/ScalaWS).
+Note: you also need to configure your Play application to use the [WS Client](https://www.playframework.com/documentation/2.6.x/ScalaWS). Or if you don't have a Play app see the [Play docs](https://www.playframework.com/documentation/2.6.x/ScalaWS#Directly-creating-WSClient) for manual configuration.

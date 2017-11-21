@@ -33,7 +33,7 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
     when(mockedRequest.withHttpHeaders(any[(String, String)])) thenReturn mockedRequest
 
     // Sender
-    val fcmSender = new FcmSender(config, wsClient, tokenRepository)
+    val fcmSender = new FcmSender(new PlayFcmConfigProvider(config), wsClient, tokenRepository)
   }
 
   "the FcmSender" when {

@@ -2,10 +2,9 @@ package io.ceratech.fcm
 
 import javax.inject.Inject
 
+import play.api.Logger
 import play.api.libs.json.{JsError, JsSuccess, Json}
 import play.api.libs.ws.{WSClient, WSResponse}
-import play.api.{Configuration, Logger}
-import pureconfig.loadConfig
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -14,16 +13,13 @@ import scala.concurrent.{ExecutionContext, Future}
   *
   * @author dries
   */
-class FcmSender @Inject()(val configuration: Configuration, val wsClient: WSClient, val tokenRepository: TokenRepository)(implicit ec: ExecutionContext) {
+class FcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val wsClient: WSClient, val tokenRepository: TokenRepository)(implicit ec: ExecutionContext) {
 
   import FcmJsonFormats._
 
   private val logger: Logger = Logger(classOf[FcmSender])
 
-  private lazy val fcmConfig: FcmConfig = loadConfig[FcmConfig](configuration.underlying, "fcm") match {
-    case Left(failures) ⇒ throw new IllegalStateException(s"FCM configuration error(s): ${failures.toList.map(_.description).mkString(", ")}")
-    case Right(c) ⇒ c
-  }
+  private lazy val fcmConfig: FcmConfig = fcmConfigProvider.config
 
   def sendNotification(notification: FcmNotification, token: String): Future[Boolean] = {
     sendNotification(notification, token :: Nil)
