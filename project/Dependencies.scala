@@ -8,4 +8,5 @@ object Dependencies {
   lazy val playJson = "com.typesafe.play" %% "play-json" % playVersion
   lazy val pureconfig = "com.github.pureconfig" %% "pureconfig" % "0.8.0"
   lazy val mockito = "org.mockito" % "mockito-core" % "2.7.22"
+  lazy val logback = "ch.qos.logback" % "logback-classic" % "1.2.3"
 }

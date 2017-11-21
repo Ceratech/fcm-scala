@@ -27,6 +27,7 @@ lazy val root = (project in file(".")).
       pureconfig,
 
       scalaTest % Test,
-      mockito % Test
+      mockito % Test,
+      logback % Test
     )
   )
