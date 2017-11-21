@@ -25,6 +25,7 @@ lazy val root = (project in file(".")).
       playWs,
       playJson,
       pureconfig,
+      scalaLogging,
 
       scalaTest % Test,
       mockito % Test,

@@ -2,7 +2,7 @@ package io.ceratech.fcm
 
 import javax.inject.Inject
 
-import play.api.Logger
+import com.typesafe.scalalogging.Logger
 import play.api.libs.json.{JsError, JsSuccess, Json}
 import play.api.libs.ws.{WSClient, WSResponse}
 
