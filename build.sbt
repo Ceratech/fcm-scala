@@ -23,6 +23,7 @@ lazy val root = (project in file(".")).
 
     libraryDependencies ++= Seq(
       playWs,
+      playWsJson,
       playJson,
       pureconfig,
       scalaLogging,

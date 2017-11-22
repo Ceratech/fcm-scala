@@ -3,17 +3,19 @@ package io.ceratech.fcm
 import javax.inject.Inject
 
 import com.typesafe.scalalogging.Logger
-import play.api.libs.json.{JsError, JsSuccess, Json}
-import play.api.libs.ws.{WSClient, WSResponse}
+import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
+import play.api.libs.ws.{StandaloneWSClient, StandaloneWSResponse}
 
 import scala.concurrent.{ExecutionContext, Future}
+import play.api.libs.ws.JsonBodyReadables._
+import play.api.libs.ws.JsonBodyWritables._
 
 /**
   * Sends notifications through the FCM API and handles the responses
   *
   * @author dries
   */
-class FcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val wsClient: WSClient, val tokenRepository: TokenRepository)(implicit ec: ExecutionContext) {
+class FcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val wsClient: StandaloneWSClient, val tokenRepository: TokenRepository)(implicit ec: ExecutionContext) {
 
   import FcmJsonFormats._
 
@@ -37,8 +39,8 @@ class FcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val wsClient
     }
   }
 
-  def handleFcmResponse(response: WSResponse, origTokens: Seq[String]): Future[Boolean] = {
-    response.json.validate[FcmResponse] match {
+  def handleFcmResponse(response: StandaloneWSResponse, origTokens: Seq[String]): Future[Boolean] = {
+    response.body[JsValue].validate[FcmResponse] match {
       case JsSuccess(obj, _) ⇒
         val result = obj.failure == 0
         if (obj.success == origTokens.size) {

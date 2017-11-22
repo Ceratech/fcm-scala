@@ -6,9 +6,11 @@ import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{AsyncWordSpec, Matchers}
-import play.api.Configuration
 import play.api.libs.json._
-import play.api.libs.ws.{BodyWritable, WSClient, WSRequest, WSResponse}
+import play.api.libs.ws._
+import play.api.libs.ws.ahc.{StandaloneAhcWSRequest, StandaloneAhcWSResponse}
+
+import play.api.libs.ws.JsonBodyReadables._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -19,21 +21,21 @@ import scala.concurrent.{ExecutionContext, Future}
   */
 class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
 
-  private lazy val config = Configuration(ConfigFactory.load("application.test"))
+  private lazy val config = ConfigFactory.load("application.test")
 
   implicit val exectutionContext: ExecutionContext = ExecutionContext.global
 
   private def mocks = new {
     val tokenRepository: TokenRepository = mock[TokenRepository]
-    val wsClient: WSClient = mock[WSClient]
+    val wsClient: StandaloneWSClient = mock[StandaloneWSClient]
 
     // Default WS Client setup
-    val mockedRequest: WSRequest = mock[WSRequest]
+    val mockedRequest: StandaloneAhcWSRequest = mock[StandaloneAhcWSRequest]
     when(wsClient.url(anyString())) thenReturn mockedRequest
     when(mockedRequest.withHttpHeaders(any[(String, String)])) thenReturn mockedRequest
 
     // Sender
-    val fcmSender = new FcmSender(new PlayFcmConfigProvider(config), wsClient, tokenRepository)
+    val fcmSender = new FcmSender(new DefaultFcmConfigProvider(config), wsClient, tokenRepository)
   }
 
   "the FcmSender" when {
@@ -45,8 +47,8 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
         val token = "123ab"
         val notification = FcmNotification(body = Some("body"))
 
-        val response = mock[WSResponse]
-        when(response.json) thenReturn successfullResponse
+        val response = mock[StandaloneAhcWSResponse]
+        when(response.body[JsValue]) thenReturn successfullResponse
 
         when(mockedRequest.post(any[JsObject])(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
 
@@ -63,20 +65,20 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
         val token = "123ab"
         val notification = FcmNotification(body = Some("body"), title = Some("title"), badge = Some("1"))
 
-        val response = mock[WSResponse]
-        when(response.json) thenReturn successfullResponse
+        val response = mock[StandaloneAhcWSResponse]
+        when(response.body[JsValue]) thenReturn successfullResponse
 
         when(mockedRequest.post(jsMatches { json ⇒
           // Check whole JSON post body
-          json("registration_ids") should be (Json.arr(token))
-          json("dry_run") should be (JsBoolean(true))
+          json("registration_ids") should be(Json.arr(token))
+          json("dry_run") should be(JsBoolean(true))
 
           val body = json("notification")
-          body shouldBe a [JsObject]
+          body shouldBe a[JsObject]
 
-          body("body") should be (JsString(notification.body.get))
-          body("title") should be (JsString(notification.title.get))
-          body("badge") should be (JsString(notification.badge.get))
+          body("body") should be(JsString(notification.body.get))
+          body("title") should be(JsString(notification.title.get))
+          body("badge") should be(JsString(notification.badge.get))
         })(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
 
         fcmSender.sendNotification(notification, token).map { result ⇒
@@ -91,11 +93,11 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
         val tokens = "123ab" :: "4321ba" :: Nil
         val notification = FcmNotification(body = Some("body"))
 
-        val response = mock[WSResponse]
-        when(response.json) thenReturn successfullResponse
+        val response = mock[StandaloneAhcWSResponse]
+        when(response.body[JsValue]) thenReturn successfullResponse
 
         when(mockedRequest.post(jsMatches { json ⇒
-          json("registration_ids") should be (JsArray(tokens.map(JsString)))
+          json("registration_ids") should be(JsArray(tokens.map(JsString)))
         })(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
 
         fcmSender.sendNotification(notification, tokens).map { result ⇒
@@ -111,8 +113,8 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
 
         val token = "not-valid-anymore"
 
-        val response = mock[WSResponse]
-        when(response.json) thenReturn failedResponse(FcmErrors.invalidRegistration, token)
+        val response = mock[StandaloneAhcWSResponse]
+        when(response.body[JsValue]) thenReturn failedResponse(FcmErrors.invalidRegistration, token)
 
         when(mockedRequest.post(any[JsObject])(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
         when(tokenRepository.deleteToken(token)) thenReturn Future.successful(())
@@ -129,8 +131,8 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
 
         val token = "unregistered"
 
-        val response = mock[WSResponse]
-        when(response.json) thenReturn failedResponse(FcmErrors.unregisteredDevice, token)
+        val response = mock[StandaloneAhcWSResponse]
+        when(response.body[JsValue]) thenReturn failedResponse(FcmErrors.unregisteredDevice, token)
 
         when(mockedRequest.post(any[JsObject])(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
         when(tokenRepository.deleteToken(token)) thenReturn Future.successful(())
@@ -150,8 +152,8 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
         val outdatedToken = "outdated"
         val updatedToken = "updated"
 
-        val response = mock[WSResponse]
-        when(response.json) thenReturn successfullUpdatedResponse(outdatedToken, updatedToken)
+        val response = mock[StandaloneAhcWSResponse]
+        when(response.body[JsValue]) thenReturn successfullUpdatedResponse(outdatedToken, updatedToken)
 
         when(mockedRequest.post(any[JsObject])(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
         when(tokenRepository.updateToken(outdatedToken, updatedToken)) thenReturn Future.successful(())
@@ -169,8 +171,8 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
 
       val token = "123ab"
 
-      val response = mock[WSResponse]
-      when(response.json) thenReturn JsString("Unkown error")
+      val response = mock[StandaloneAhcWSResponse]
+      when(response.body[JsValue]) thenReturn JsString("Unkown error")
 
       when(mockedRequest.post(any[JsObject])(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
 
@@ -185,8 +187,8 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
 
       val token = "token"
 
-      val response = mock[WSResponse]
-      when(response.json) thenReturn failedResponse("Unknown error", token)
+      val response = mock[StandaloneAhcWSResponse]
+      when(response.body[JsValue]) thenReturn failedResponse("Unknown error", token)
 
       when(mockedRequest.post(any[JsObject])(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
       when(tokenRepository.deleteToken(token)) thenReturn Future.successful(())
