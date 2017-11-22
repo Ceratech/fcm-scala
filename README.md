@@ -1,4 +1,4 @@
-# Firebase Cloud Messaging wrapper for Play Scala 
+# Firebase Cloud Messaging wrapper for Scala 
 
 [![Build Status](https://travis-ci.org/Ceratech/fcm-scala.svg?branch=master)](https://travis-ci.org/Ceratech/fcm-scala)
 [ ![Download](https://api.bintray.com/packages/ceratech/maven/fcm-scala/images/download.svg) ](https://bintray.com/ceratech/maven/fcm-scala/_latestVersion)
@@ -10,16 +10,17 @@ This small Scala Library makes it easy to send a notification through the FCM HT
 * Handle updated tokens
 * Handle deleted/invalid tokens
 
+This library makes use of the Play Standalone WS client.
+
 ## Requirements
 
-* Play 2.6.x
 * Scala 2.11.x / 2.12.x
 
 ## Usage
 
 ### Configuration
 
-In your `application.conf` add the following configuration:
+Easiest is to use a [Typesafe Config](https://github.com/lightbend/config) file to configure FCM. In your `application.conf` add the following configuration:
 
 ```
 fcm {
@@ -35,7 +36,7 @@ Bind the `DefaultFcmConfigProvider` dependency to read the configuration from th
 bind(classOf[FcmConfigProvider]).to(classOf[DefaultFcmConfigProvider])
 ```
 
-You can also provide your own implementation of the `FcmConfigProvider` trait.
+You can also provide your own implementation of the `FcmConfigProvider` trait to get needed configuration.
 
 Lastly you should also provide a standalone [Play WS client](https://github.com/playframework/play-ws). 
 
