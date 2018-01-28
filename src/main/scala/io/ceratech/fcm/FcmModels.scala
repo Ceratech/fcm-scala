@@ -14,7 +14,7 @@ case class FcmNotification(body: Option[String], title: Option[String] = None, b
   *
   * @author dries
   */
-case class FcmResponse(multicast_id: Int, success: Int, failure: Int, canonical_ids: Int, results: Seq[FcmResult])
+case class FcmResponse(multicast_id: Long, success: Int, failure: Int, canonical_ids: Int, results: Seq[FcmResult])
 
 /**
   * An individual message result
