@@ -10,7 +10,7 @@ This small Scala Library makes it easy to send a notification through the FCM HT
 * Handle updated tokens
 * Handle deleted/invalid tokens
 
-This library makes use of the Play Standalone WS client.
+This library makes use of the [STTP HTTP Client](https://sttp.readthedocs.io/en/latest/)
 
 ## Requirements
 
@@ -38,7 +38,7 @@ bind(classOf[FcmConfigProvider]).to(classOf[DefaultFcmConfigProvider])
 
 You can also provide your own implementation of the `FcmConfigProvider` trait to get needed configuration.
 
-Lastly you should also provide a standalone [Play WS client](https://github.com/playframework/play-ws). 
+By default the `FcmConfigProvider` defaults to an async based STTP client; this can be overriden in your own `FcmConfigProvider` implementation. 
 
 ### Token repository
 
@@ -50,4 +50,4 @@ bind(classOf[TokenRepository]).to(classOf[MyTokenRepository])
 
 ### Sending notifications
 
-Inject an instance of `io.ceratech.fcm.FcmSender` into your desired class and call `sendNotification(FcmNotification, token)`.
+Inject an instance of `io.ceratech.fcm.FcmSender` into your desired class and call `sendNotification(FcmNotification, token)`. The `FcmNotification` case class contains the fields you can supply to FCM.

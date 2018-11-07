@@ -1,23 +1,24 @@
 package io.ceratech.fcm
 
+import com.softwaremill.sttp._
+import com.softwaremill.sttp.circe._
+import com.typesafe.scalalogging.Logger
+import io.circe.Error
+import io.circe.syntax._
 import javax.inject.Inject
 
-import com.typesafe.scalalogging.Logger
-import play.api.libs.json.{JsError, JsSuccess, JsValue, Json}
-import play.api.libs.ws.{StandaloneWSClient, StandaloneWSResponse}
-
 import scala.concurrent.{ExecutionContext, Future}
-import play.api.libs.ws.JsonBodyReadables._
-import play.api.libs.ws.JsonBodyWritables._
 
 /**
   * Sends notifications through the FCM API and handles the responses
   *
   * @author dries
   */
-class FcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val wsClient: StandaloneWSClient, val tokenRepository: TokenRepository)(implicit ec: ExecutionContext) {
+class FcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val tokenRepository: TokenRepository)(implicit ec: ExecutionContext) {
 
   import FcmJsonFormats._
+
+  private implicit val backend: SttpBackend[Future, Nothing] = fcmConfigProvider.constructBackend
 
   private val logger: Logger = Logger(classOf[FcmSender])
 
@@ -30,52 +31,51 @@ class FcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val wsClient
   def sendNotification(notification: FcmNotification, tokens: Seq[String]): Future[Boolean] = {
     val body = buildNotification(notification, tokens)
 
-    val call = wsClient.url(fcmConfig.endpoint)
-      .withHttpHeaders(("Authorization", s"key=${fcmConfig.key}"))
-      .post(body).zip(Future.successful(tokens))
+    val call = sttp.headers("Authorization" → s"key=${fcmConfig.key}")
+      .body(body)
+      .post(uri"${fcmConfig.endpoint}")
+      .response(asJson[FcmResponse])
+      .send()
+      .zip(Future.successful(tokens))
+
 
     call.flatMap { case (response, originalTokens) ⇒
       handleFcmResponse(response, originalTokens)
     }
   }
 
-  def handleFcmResponse(response: StandaloneWSResponse, origTokens: Seq[String]): Future[Boolean] = {
-    response.body[JsValue].validate[FcmResponse] match {
-      case JsSuccess(obj, _) ⇒
-        val result = obj.failure == 0
-        if (obj.success == origTokens.size) {
-          logger.debug(s"All (${obj.success} push notifications sent successfully")
-        }
+  def handleFcmResponse(response: Response[Either[DeserializationError[Error], FcmResponse]], origTokens: Seq[String]): Future[Boolean] = {
+    response.body match {
+      case Right(body) ⇒ body match {
+        case Right(obj) ⇒
+          val result = obj.failure == 0
+          if (obj.success == origTokens.size) {
+            logger.debug(s"All (${obj.success} push notifications sent successfully")
+          }
 
-        Future.sequence(obj.results.zip(origTokens).map {
-          case (res, origToken) ⇒
-            val updateToken = res.registration_id.map { newToken ⇒
-              tokenRepository.updateToken(origToken, newToken)
-            }.getOrElse(Future.successful(()))
+          Future.sequence(obj.results.zip(origTokens).map {
+            case (res, origToken) ⇒
+              val updateToken = res.registration_id.map { newToken ⇒
+                tokenRepository.updateToken(origToken, newToken)
+              }.getOrElse(Future.successful(()))
 
-            val deleteToken = res.error.map {
-              case FcmErrors.invalidRegistration | FcmErrors.unregisteredDevice ⇒
-                logger.debug(s"Invalid/unknown registration token $origToken, removing token")
-                tokenRepository.deleteToken(origToken)
-              case err ⇒
-                logger.debug(s"Error sending push notifications: $err (messageId: ${res.message_id.getOrElse("<unkown>")})")
-                Future.successful(())
-            }.getOrElse(Future.successful(())).map(_ ⇒ ())
+              val deleteToken = res.error.map {
+                case FcmErrors.invalidRegistration | FcmErrors.unregisteredDevice ⇒
+                  logger.debug(s"Invalid/unknown registration token $origToken, removing token")
+                  tokenRepository.deleteToken(origToken)
+                case err ⇒
+                  logger.debug(s"Error sending push notifications: $err (messageId: ${res.message_id.getOrElse("<unkown>")})")
+                  Future.successful(())
+              }.getOrElse(Future.successful(())).map(_ ⇒ ())
 
-            updateToken.zip(deleteToken).map(_ ⇒ ())
-        }).map(_ ⇒ result)
-
-      case JsError(errors) ⇒ Future.failed(FcmException(errors.map {
-        case (path, validationErrors) ⇒ path.toString() + ": " + validationErrors.map(_.message).mkString(", ")
-      }.mkString("Validation errors: ", ", ", "")))
+              updateToken.zip(deleteToken).map(_ ⇒ ())
+          }).map(_ ⇒ result)
+        case Left(jsonError) ⇒
+          Future.failed(FcmException(jsonError.message))
+      }
+      case Left(err) ⇒ Future.failed(FcmException(err))
     }
   }
 
-  private def buildNotification(notification: FcmNotification, tokens: Seq[String]) = {
-    Json.obj(
-      "registration_ids" → tokens,
-      "dry_run" → fcmConfig.dryRun,
-      "notification" → Json.toJson(notification)
-    )
-  }
+  private def buildNotification(notification: FcmNotification, tokens: Seq[String]) = FcmMessage(tokens, fcmConfig.dryRun, notification).asJson
 }

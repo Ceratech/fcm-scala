@@ -1,6 +1,15 @@
 package io.ceratech.fcm
 
-import play.api.libs.json.{Json, Reads, Writes}
+import io.circe._
+import io.circe.generic.semiauto._
+import io.circe.syntax._
+
+/**
+  * Message that gets send to FCM
+  *
+  * @author dries
+  */
+case class FcmMessage(registrationIds: Seq[String], dryRun: Boolean, notification: FcmNotification)
 
 /**
   * Notification
@@ -27,10 +36,17 @@ case class FcmResult(message_id: Option[String], registration_id: Option[String]
   * JSON formats
   */
 object FcmJsonFormats {
-  implicit val fcmNotificationWrites: Writes[FcmNotification] = Json.writes[FcmNotification]
+  implicit val fcmMessageEncoder: Encoder[FcmMessage] = (m: FcmMessage) => Json.obj(
+    ("registration_ids", Json.arr(m.registrationIds.map(Json.fromString): _*)),
+    ("dry_run", Json.fromBoolean(m.dryRun)),
+    ("notification", m.notification.asJson)
+  )
+  implicit val fcmNotificationEncoder: Encoder[FcmNotification] = deriveEncoder[FcmNotification]
 
-  implicit val fcmResult: Reads[FcmResult] = Json.reads[FcmResult]
-  implicit val fcmResponseReads: Reads[FcmResponse] = Json.reads[FcmResponse]
+  implicit val fcmResultDecoder: Decoder[FcmResult] = deriveDecoder[FcmResult]
+  implicit val fcmResultEncoder: Encoder[FcmResult] = deriveEncoder[FcmResult]
+  implicit val fcmResponseDecoder: Decoder[FcmResponse] = deriveDecoder[FcmResponse]
+  implicit val fcmResponseEncoder: Encoder[FcmResponse] = deriveEncoder[FcmResponse]
 }
 
 /**

@@ -7,10 +7,10 @@ lazy val root = (project in file(".")).
 
     inThisBuild(List(
       organization := "io.ceratech",
-      scalaVersion := "2.12.3"
+      scalaVersion := "2.12.6"
     )),
 
-    crossScalaVersions := Seq("2.12.3", "2.11.11"),
+    crossScalaVersions := Seq("2.12.6", "2.11.11"),
     autoScalaLibrary := true,
 
     name := "fcm-scala",
@@ -21,15 +21,15 @@ lazy val root = (project in file(".")).
     git.useGitDescribe := true,
     git.baseVersion := "0.1",
 
+    libraryDependencies ++= sttp,
+    libraryDependencies ++= circe,
     libraryDependencies ++= Seq(
-      playWs,
-      playWsJson,
-      playJson,
-      pureconfig,
+      ficus,
       scalaLogging,
+      javaxInject,
 
       scalaTest % Test,
-      mockito % Test,
+      scalaMock % Test,
       logback % Test
     )
   )

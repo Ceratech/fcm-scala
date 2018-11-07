@@ -1,16 +1,11 @@
 package io.ceratech.fcm
 
+import com.softwaremill.sttp.testing.SttpBackendStub
+import com.softwaremill.sttp.{StringBody, SttpBackend}
 import com.typesafe.config.ConfigFactory
-import io.ceratech.fcm.helpers.JsObjectMatcher.jsMatches
-import org.mockito.ArgumentMatchers._
-import org.mockito.Mockito._
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{AsyncWordSpec, Matchers}
-import play.api.libs.json._
-import play.api.libs.ws._
-import play.api.libs.ws.ahc.{StandaloneAhcWSRequest, StandaloneAhcWSResponse}
-
-import play.api.libs.ws.JsonBodyReadables._
+import io.circe.syntax._
+import org.scalamock.scalatest.AsyncMockFactory
+import org.scalatest.{AsyncWordSpec, EitherValues, Matchers}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -19,67 +14,54 @@ import scala.concurrent.{ExecutionContext, Future}
   *
   * @author dries
   */
-class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
+class FcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFactory with EitherValues {
+
+  import FcmJsonFormats._
 
   private lazy val config = ConfigFactory.load("application.test")
 
-  implicit val exectutionContext: ExecutionContext = ExecutionContext.global
-
-  private def mocks = new {
-    val tokenRepository: TokenRepository = mock[TokenRepository]
-    val wsClient: StandaloneWSClient = mock[StandaloneWSClient]
-
-    // Default WS Client setup
-    val mockedRequest: StandaloneAhcWSRequest = mock[StandaloneAhcWSRequest]
-    when(wsClient.url(anyString())) thenReturn mockedRequest
-    when(mockedRequest.withHttpHeaders(any[(String, String)])) thenReturn mockedRequest
-
-    // Sender
-    val fcmSender = new FcmSender(new DefaultFcmConfigProvider(config), wsClient, tokenRepository)
+  private class TestFcmConfigProvider(backend: SttpBackend[Future, Nothing]) extends DefaultFcmConfigProvider(config) {
+    override def constructBackend: SttpBackend[Future, Nothing] = backend
   }
+
+  implicit val exectutionContext: ExecutionContext = ExecutionContext.global
 
   "the FcmSender" when {
     "sendNotification with valid configuration" should {
       "send a notification through FCM with a successfull response" in {
-        val m = mocks
-        import m._
+        val tokenRepository: TokenRepository = stub[TokenRepository]
+        val backend = SttpBackendStub.asynchronousFuture
+          .whenAnyRequest
+          .thenRespond(successfullResponse)
+
+        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
 
         val token = "123ab"
         val notification = FcmNotification(body = Some("body"))
 
-        val response = mock[StandaloneAhcWSResponse]
-        when(response.body[JsValue]) thenReturn successfullResponse
-
-        when(mockedRequest.post(any[JsObject])(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
-
         fcmSender.sendNotification(notification, token).map { result ⇒
-          verifyZeroInteractions(tokenRepository)
+          (tokenRepository.deleteToken _).verify(*).never()
+          (tokenRepository.updateToken _).verify(*, *).never()
           result shouldBe true
         }
       }
 
       "send a correct notification body with a single token" in {
-        val m = mocks
-        import m._
-
         val token = "123ab"
+
+        val tokenRepository: TokenRepository = mock[TokenRepository]
+        val backend = SttpBackendStub.asynchronousFuture
+          .whenRequestMatches { req ⇒
+            val json = io.circe.parser.parse(req.body.asInstanceOf[StringBody].s).right.value.hcursor
+            json.get[Seq[String]]("registration_ids").right.value shouldBe Seq(token)
+            json.get[Boolean]("dry_run").right.value shouldBe true
+            true
+          }
+          .thenRespond(successfullResponse)
+
+        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
+
         val notification = FcmNotification(body = Some("body"), title = Some("title"), badge = Some("1"))
-
-        val response = mock[StandaloneAhcWSResponse]
-        when(response.body[JsValue]) thenReturn successfullResponse
-
-        when(mockedRequest.post(jsMatches { json ⇒
-          // Check whole JSON post body
-          json("registration_ids") should be(Json.arr(token))
-          json("dry_run") should be(JsBoolean(true))
-
-          val body = json("notification")
-          body shouldBe a[JsObject]
-
-          body("body") should be(JsString(notification.body.get))
-          body("title") should be(JsString(notification.title.get))
-          body("badge") should be(JsString(notification.badge.get))
-        })(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
 
         fcmSender.sendNotification(notification, token).map { result ⇒
           result shouldBe true
@@ -87,18 +69,19 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
       }
 
       "send a notification body with more than one token" in {
-        val m = mocks
-        import m._
-
         val tokens = "123ab" :: "4321ba" :: Nil
         val notification = FcmNotification(body = Some("body"))
 
-        val response = mock[StandaloneAhcWSResponse]
-        when(response.body[JsValue]) thenReturn successfullResponse
+        val tokenRepository: TokenRepository = mock[TokenRepository]
+        val backend = SttpBackendStub.asynchronousFuture
+          .whenRequestMatches { req ⇒
+            val json = io.circe.parser.parse(req.body.asInstanceOf[StringBody].s).right.value.hcursor
+            json.get[Seq[String]]("registration_ids").right.value shouldBe tokens
+            true
+          }
+          .thenRespond(successfullResponse)
 
-        when(mockedRequest.post(jsMatches { json ⇒
-          json("registration_ids") should be(JsArray(tokens.map(JsString)))
-        })(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
+        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
 
         fcmSender.sendNotification(notification, tokens).map { result ⇒
           result shouldBe true
@@ -108,37 +91,35 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
 
     "sendNotification with invalid tokens" should {
       "remove the token when FCM gives a invalid registration error" in {
-        val m = mocks
-        import m._
-
         val token = "not-valid-anymore"
 
-        val response = mock[StandaloneAhcWSResponse]
-        when(response.body[JsValue]) thenReturn failedResponse(FcmErrors.invalidRegistration, token)
+        val tokenRepository: TokenRepository = mock[TokenRepository]
+        val backend = SttpBackendStub.asynchronousFuture
+          .whenAnyRequest
+          .thenRespond(failedResponse(FcmErrors.invalidRegistration, token))
 
-        when(mockedRequest.post(any[JsObject])(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
-        when(tokenRepository.deleteToken(token)) thenReturn Future.successful(())
+        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
+
+        (tokenRepository.deleteToken _).expects(token).returns(Future.successful(()))
 
         fcmSender.sendNotification(FcmNotification(body = Some("Test")), token).map { result ⇒
-          verify(tokenRepository).deleteToken(token)
           result shouldBe false
         }
       }
 
       "remove the token when FCM gives a unregistered device error" in {
-        val m = mocks
-        import m._
-
         val token = "unregistered"
 
-        val response = mock[StandaloneAhcWSResponse]
-        when(response.body[JsValue]) thenReturn failedResponse(FcmErrors.unregisteredDevice, token)
+        val tokenRepository: TokenRepository = mock[TokenRepository]
+        val backend = SttpBackendStub.asynchronousFuture
+          .whenAnyRequest
+          .thenRespond(failedResponse(FcmErrors.unregisteredDevice, token))
 
-        when(mockedRequest.post(any[JsObject])(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
-        when(tokenRepository.deleteToken(token)) thenReturn Future.successful(())
+        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
+
+        (tokenRepository.deleteToken _).expects(token).returns(Future.successful(()))
 
         fcmSender.sendNotification(FcmNotification(body = Some("Test")), token).map { result ⇒
-          verify(tokenRepository).deleteToken(token)
           result shouldBe false
         }
       }
@@ -146,35 +127,33 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
 
     "sendNotification with outdated tokens" should {
       "update the outdated token to the updated token" in {
-        val m = mocks
-        import m._
-
         val outdatedToken = "outdated"
         val updatedToken = "updated"
 
-        val response = mock[StandaloneAhcWSResponse]
-        when(response.body[JsValue]) thenReturn successfullUpdatedResponse(outdatedToken, updatedToken)
+        val tokenRepository: TokenRepository = mock[TokenRepository]
+        val backend = SttpBackendStub.asynchronousFuture
+          .whenAnyRequest
+          .thenRespond(successfullUpdatedResponse(outdatedToken, updatedToken))
 
-        when(mockedRequest.post(any[JsObject])(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
-        when(tokenRepository.updateToken(outdatedToken, updatedToken)) thenReturn Future.successful(())
+        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
+
+        (tokenRepository.updateToken _).expects(outdatedToken, updatedToken).returns(Future.successful(()))
 
         fcmSender.sendNotification(FcmNotification(body = Some("123")), outdatedToken).map { result ⇒
-          verify(tokenRepository).updateToken(outdatedToken, updatedToken)
           result shouldBe true
         }
       }
     }
 
     "sendToken should print the error if FCM gives an incorrect formatted JSON response" in {
-      val m = mocks
-      import m._
-
       val token = "123ab"
 
-      val response = mock[StandaloneAhcWSResponse]
-      when(response.body[JsValue]) thenReturn JsString("Unkown error")
+      val tokenRepository: TokenRepository = mock[TokenRepository]
+      val backend = SttpBackendStub.asynchronousFuture
+        .whenAnyRequest
+        .thenRespond("Non JSON response")
 
-      when(mockedRequest.post(any[JsObject])(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
+      val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
 
       recoverToSucceededIf[FcmException] {
         fcmSender.sendNotification(FcmNotification(body = Some("123")), token)
@@ -182,59 +161,27 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with MockitoSugar {
     }
 
     "sendToken should print the error if FCM gives another unhandlable error in the response" in {
-      val m = mocks
-      import m._
-
       val token = "token"
 
-      val response = mock[StandaloneAhcWSResponse]
-      when(response.body[JsValue]) thenReturn failedResponse("Unknown error", token)
+      val tokenRepository: TokenRepository = mock[TokenRepository]
+      val backend = SttpBackendStub.asynchronousFuture
+        .whenAnyRequest
+        .thenRespond(failedResponse("Unkown error", token))
 
-      when(mockedRequest.post(any[JsObject])(any[BodyWritable[JsObject]])) thenReturn Future.successful(response)
-      when(tokenRepository.deleteToken(token)) thenReturn Future.successful(())
+      val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
+
+      (tokenRepository.deleteToken _).expects(token).never()
+      (tokenRepository.updateToken _).expects(*, *).never()
 
       fcmSender.sendNotification(FcmNotification(body = Some("Test")), token).map { result ⇒
-        verifyZeroInteractions(tokenRepository)
         result shouldBe false
       }
     }
   }
 
-  private val successfullResponse = Json.obj(
-    "multicast_id" → 1234,
-    "success" → 1,
-    "failure" → 0,
-    "canonical_ids" → 0,
-    "results" → Json.arr(
-      Json.obj(
-        "message_id" → "a"
-      )
-    )
-  )
+  private val successfullResponse = FcmResponse(1234, 1, 0, 0, FcmResult(Some("a"), None, None) :: Nil).asJson.toString()
 
-  private def failedResponse(error: String, token: String): JsObject = Json.obj(
-    "multicast_id" → 1234,
-    "success" → 0,
-    "failure" → 1,
-    "canonical_ids" → 0,
-    "results" → Json.arr(
-      Json.obj(
-        "message_id" → token,
-        "error" → error
-      )
-    )
-  )
+  private def failedResponse(error: String, token: String) = FcmResponse(1234, 0, 1, 0, FcmResult(Some(token), None, Some(error)) :: Nil).asJson.toString()
 
-  private def successfullUpdatedResponse(outdatedToken: String, updatedToken: String) = Json.obj(
-    "multicast_id" → 1234,
-    "success" → 1,
-    "failure" → 0,
-    "canonical_ids" → 1,
-    "results" → Json.arr(
-      Json.obj(
-        "message_id" → outdatedToken,
-        "registration_id" → updatedToken
-      )
-    )
-  )
+  private def successfullUpdatedResponse(outdatedToken: String, updatedToken: String) = FcmResponse(1234, 1, 0, 1, FcmResult(Some(outdatedToken), Some(updatedToken), None) :: Nil).asJson.toString()
 }

@@ -1,9 +1,9 @@
 package io.ceratech.fcm
 
-import javax.inject.Inject
-
 import com.typesafe.config.Config
-import pureconfig.loadConfig
+import javax.inject.Inject
+import net.ceedubs.ficus.Ficus._
+import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
 /**
   * Default, TypeSafe config enabled, FCM config provider
@@ -12,9 +12,7 @@ import pureconfig.loadConfig
   */
 class DefaultFcmConfigProvider @Inject()(configuration: Config) extends FcmConfigProvider {
 
-  lazy val config: FcmConfig = loadConfig[FcmConfig](configuration, "fcm") match {
-    case Left(failures) ⇒ throw new IllegalStateException(s"FCM configuration error(s): ${failures.toList.map(_.description).mkString(", ")}")
-    case Right(c) ⇒ c
-  }
+  import net.ceedubs.ficus.readers.namemappers.implicits.hyphenCase
 
+  lazy val config: FcmConfig = configuration.as[FcmConfig]("fcm")
 }
