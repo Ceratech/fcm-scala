@@ -160,6 +160,21 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFactory wi
       }
     }
 
+    "sendToken should print the error if FCM gives an unexpected respons code" in {
+      val token = "123ab"
+
+      val tokenRepository: TokenRepository = mock[TokenRepository]
+      val backend = SttpBackendStub.asynchronousFuture
+        .whenAnyRequest
+        .thenRespondWithCode(400)
+
+      val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
+
+      recoverToSucceededIf[FcmException] {
+        fcmSender.sendNotification(FcmNotification(body = Some("123")), token)
+      }
+    }
+
     "sendToken should print the error if FCM gives another unhandlable error in the response" in {
       val token = "token"
 
