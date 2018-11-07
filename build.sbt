@@ -10,7 +10,6 @@ lazy val root = (project in file(".")).
       scalaVersion := "2.12.6"
     )),
 
-    crossScalaVersions := Seq("2.12.6", "2.11.11"),
     autoScalaLibrary := true,
 
     name := "fcm-scala",
