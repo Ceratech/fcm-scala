@@ -13,7 +13,7 @@ cache:
     - $HOME/.ivy2
 
 before_install:
-  openssl aes-256-cbc -K $encrypted_b317ba21c89a_key -iv $encrypted_b317ba21c89a_iv -in key.json.enc -out key.json -d
+  openssl aes-256-cbc -K $encrypted_b317ba21c89a_key -iv $encrypted_b317ba21c89a_iv -in src/test/resources/key.json.enc -out src/test/resources/key.json -d
 
 script:
   - sbt ++$TRAVIS_SCALA_VERSION clean coverage test coverageReport &&
