@@ -6,3 +6,4 @@ target
 /.project
 /.settings
 /RUNNING_PID
+/src/test/resources/key.json

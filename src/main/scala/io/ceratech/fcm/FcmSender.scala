@@ -31,7 +31,7 @@ class FcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val tokenRep
   def sendNotification(notification: FcmNotification, tokens: Seq[String]): Future[Boolean] = {
     val body = buildNotification(notification, tokens)
 
-    val call = sttp.headers("Authorization" → s"key=${fcmConfig.key}")
+    val call = sttp.headers("Authorization" → s"Bearer ${fcmConfig.endpoint}")
       .body(body)
       .post(uri"${fcmConfig.endpoint}")
       .response(asJson[FcmResponse])

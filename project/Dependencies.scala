@@ -16,6 +16,7 @@ object Dependencies {
     "io.circe" %% "circe-generic" % circeVersion
   )
 
+  lazy val jwtCirce = "com.pauldijou" %% "jwt-circe" % "0.19.0"
   lazy val javaxInject = "javax.inject" % "javax.inject" % "1"
   lazy val ficus = "com.iheart" %% "ficus" % "1.4.3"
   lazy val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0"

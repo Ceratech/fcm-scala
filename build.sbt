@@ -23,6 +23,7 @@ lazy val root = (project in file(".")).
     libraryDependencies ++= sttp,
     libraryDependencies ++= circe,
     libraryDependencies ++= Seq(
+      jwtCirce,
       ficus,
       scalaLogging,
       javaxInject,
