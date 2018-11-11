@@ -1,9 +1,9 @@
 package io.ceratech.fcm
 
+import com.softwaremill.sttp.SttpBackend
 import com.softwaremill.sttp.testing.SttpBackendStub
-import com.softwaremill.sttp.{StringBody, SttpBackend}
 import com.typesafe.config.ConfigFactory
-import io.circe.syntax._
+import io.ceratech.fcm.auth.{FirebaseAuthenticator, GoogleToken}
 import org.scalamock.scalatest.AsyncMockFactory
 import org.scalatest.{AsyncWordSpec, EitherValues, Matchers}
 
@@ -15,8 +15,6 @@ import scala.concurrent.{ExecutionContext, Future}
   * @author dries
   */
 class FcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFactory with EitherValues {
-
-  import FcmJsonFormats._
 
   private lazy val config = ConfigFactory.load("application.test")
 
@@ -30,117 +28,61 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFactory wi
     "sendNotification with valid configuration" should {
       "send a notification through FCM with a successfull response" in {
         val tokenRepository: TokenRepository = stub[TokenRepository]
+        val firebaseAuthenticator: FirebaseAuthenticator = mock[FirebaseAuthenticator]
         val backend = SttpBackendStub.asynchronousFuture
           .whenAnyRequest
           .thenRespond(successfullResponse)
 
-        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
+        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
 
         val token = "123ab"
-        val notification = FcmNotification(body = Some("body"))
+        val message = FcmMessage(FcmNotification(body = Some("body")), FcmTokenTarget(token))
 
-        fcmSender.sendNotification(notification, token).map { result ⇒
+        (firebaseAuthenticator.token _).expects().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
+
+        fcmSender.sendMessage(message).map { result ⇒
           (tokenRepository.deleteToken _).verify(*).never()
-          (tokenRepository.updateToken _).verify(*, *).never()
-          result shouldBe true
-        }
-      }
-
-      "send a correct notification body with a single token" in {
-        val token = "123ab"
-
-        val tokenRepository: TokenRepository = mock[TokenRepository]
-        val backend = SttpBackendStub.asynchronousFuture
-          .whenRequestMatches { req ⇒
-            val json = io.circe.parser.parse(req.body.asInstanceOf[StringBody].s).right.value.hcursor
-            json.get[Seq[String]]("registration_ids").right.value shouldBe Seq(token)
-            json.get[Boolean]("dry_run").right.value shouldBe true
-            true
-          }
-          .thenRespond(successfullResponse)
-
-        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
-
-        val notification = FcmNotification(body = Some("body"), title = Some("title"), badge = Some("1"))
-
-        fcmSender.sendNotification(notification, token).map { result ⇒
-          result shouldBe true
-        }
-      }
-
-      "send a notification body with more than one token" in {
-        val tokens = "123ab" :: "4321ba" :: Nil
-        val notification = FcmNotification(body = Some("body"))
-
-        val tokenRepository: TokenRepository = mock[TokenRepository]
-        val backend = SttpBackendStub.asynchronousFuture
-          .whenRequestMatches { req ⇒
-            val json = io.circe.parser.parse(req.body.asInstanceOf[StringBody].s).right.value.hcursor
-            json.get[Seq[String]]("registration_ids").right.value shouldBe tokens
-            true
-          }
-          .thenRespond(successfullResponse)
-
-        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
-
-        fcmSender.sendNotification(notification, tokens).map { result ⇒
-          result shouldBe true
+          result shouldBe Some("message-id-from-fcm")
         }
       }
     }
 
     "sendNotification with invalid tokens" should {
-      "remove the token when FCM gives a invalid registration error" in {
-        val token = "not-valid-anymore"
-
-        val tokenRepository: TokenRepository = mock[TokenRepository]
-        val backend = SttpBackendStub.asynchronousFuture
-          .whenAnyRequest
-          .thenRespond(failedResponse(FcmErrors.invalidRegistration, token))
-
-        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
-
-        (tokenRepository.deleteToken _).expects(token).returns(Future.successful(()))
-
-        fcmSender.sendNotification(FcmNotification(body = Some("Test")), token).map { result ⇒
-          result shouldBe false
-        }
-      }
-
-      "remove the token when FCM gives a unregistered device error" in {
+      "remove the token when FCM gives a unregistered token error" in {
         val token = "unregistered"
 
         val tokenRepository: TokenRepository = mock[TokenRepository]
+        val firebaseAuthenticator: FirebaseAuthenticator = mock[FirebaseAuthenticator]
         val backend = SttpBackendStub.asynchronousFuture
           .whenAnyRequest
-          .thenRespond(failedResponse(FcmErrors.unregisteredDevice, token))
+          .thenRespondWithCode(400, failedResponse(FcmErrors.Unregistered))
 
-        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
+        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
 
+        (firebaseAuthenticator.token _).expects().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
         (tokenRepository.deleteToken _).expects(token).returns(Future.successful(()))
 
-        fcmSender.sendNotification(FcmNotification(body = Some("Test")), token).map { result ⇒
-          result shouldBe false
+        fcmSender.sendMessage(FcmMessage(FcmNotification(body = Some("Test")), FcmTokenTarget(token))).map { result ⇒
+          result shouldBe None
         }
       }
-    }
 
-    "sendNotification with outdated tokens" should {
-      "update the outdated token to the updated token" in {
-        val outdatedToken = "outdated"
-        val updatedToken = "updated"
+      "remove the token when FCM gives a sender id mismatch error" in {
+        val token = "sender-mismatch"
 
         val tokenRepository: TokenRepository = mock[TokenRepository]
+        val firebaseAuthenticator: FirebaseAuthenticator = mock[FirebaseAuthenticator]
         val backend = SttpBackendStub.asynchronousFuture
           .whenAnyRequest
-          .thenRespond(successfullUpdatedResponse(outdatedToken, updatedToken))
+          .thenRespondWithCode(400, failedResponse(FcmErrors.SenderIdMismatch))
 
-        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
+        val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
 
-        (tokenRepository.updateToken _).expects(outdatedToken, updatedToken).returns(Future.successful(()))
+        (firebaseAuthenticator.token _).expects().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
+        (tokenRepository.deleteToken _).expects(token).returns(Future.successful(()))
 
-        fcmSender.sendNotification(FcmNotification(body = Some("123")), outdatedToken).map { result ⇒
-          result shouldBe true
+        fcmSender.sendMessage(FcmMessage(FcmNotification(body = Some("Test")), FcmTokenTarget(token))).map { result ⇒
+          result shouldBe None
         }
       }
     }
@@ -149,29 +91,35 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFactory wi
       val token = "123ab"
 
       val tokenRepository: TokenRepository = mock[TokenRepository]
+      val firebaseAuthenticator: FirebaseAuthenticator = mock[FirebaseAuthenticator]
       val backend = SttpBackendStub.asynchronousFuture
         .whenAnyRequest
         .thenRespond("Non JSON response")
 
-      val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
+      val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
+
+      (firebaseAuthenticator.token _).expects().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
 
       recoverToSucceededIf[FcmException] {
-        fcmSender.sendNotification(FcmNotification(body = Some("123")), token)
+        fcmSender.sendMessage(FcmMessage(FcmNotification(body = Some("123")), FcmTokenTarget(token)))
       }
     }
 
-    "sendToken should print the error if FCM gives an unexpected respons code" in {
+    "sendToken should print the error if FCM gives an unexpected response code" in {
       val token = "123ab"
 
       val tokenRepository: TokenRepository = mock[TokenRepository]
+      val firebaseAuthenticator: FirebaseAuthenticator = mock[FirebaseAuthenticator]
       val backend = SttpBackendStub.asynchronousFuture
         .whenAnyRequest
         .thenRespondWithCode(400)
 
-      val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
+      val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
+
+      (firebaseAuthenticator.token _).expects().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
 
       recoverToSucceededIf[FcmException] {
-        fcmSender.sendNotification(FcmNotification(body = Some("123")), token)
+        fcmSender.sendMessage(FcmMessage(FcmNotification(body = Some("123")), FcmTokenTarget(token)))
       }
     }
 
@@ -179,24 +127,41 @@ class FcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFactory wi
       val token = "token"
 
       val tokenRepository: TokenRepository = mock[TokenRepository]
+      val firebaseAuthenticator: FirebaseAuthenticator = mock[FirebaseAuthenticator]
       val backend = SttpBackendStub.asynchronousFuture
         .whenAnyRequest
-        .thenRespond(failedResponse("Unkown error", token))
+        .thenRespond(failedResponse("Unkown error"))
 
-      val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository)
+      val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
 
+      (firebaseAuthenticator.token _).expects().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
       (tokenRepository.deleteToken _).expects(token).never()
-      (tokenRepository.updateToken _).expects(*, *).never()
 
-      fcmSender.sendNotification(FcmNotification(body = Some("Test")), token).map { result ⇒
-        result shouldBe false
+      recoverToSucceededIf[FcmException] {
+        fcmSender.sendMessage(FcmMessage(FcmNotification(body = Some("123")), FcmTokenTarget(token)))
+      }
+    }
+
+    "sendToken should not call the FCM API if not auth token can be obtained" in {
+      val token = "123ab"
+
+      val tokenRepository: TokenRepository = mock[TokenRepository]
+      val firebaseAuthenticator: FirebaseAuthenticator = mock[FirebaseAuthenticator]
+      val backend = SttpBackendStub.asynchronousFuture
+        .whenRequestMatches(_ ⇒ fail("No request should be made"))
+        .thenRespondOk()
+
+      val fcmSender = new FcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
+
+      (firebaseAuthenticator.token _).expects().returns(Future.successful(None))
+
+      recoverToSucceededIf[FcmException] {
+        fcmSender.sendMessage(FcmMessage(FcmNotification(body = Some("123")), FcmTokenTarget(token)))
       }
     }
   }
 
-  private val successfullResponse = FcmResponse(1234, 1, 0, 0, FcmResult(Some("a"), None, None) :: Nil).asJson.toString()
+  private val successfullResponse = """{"name":"message-id-from-fcm"}"""
 
-  private def failedResponse(error: String, token: String) = FcmResponse(1234, 0, 1, 0, FcmResult(Some(token), None, Some(error)) :: Nil).asJson.toString()
-
-  private def successfullUpdatedResponse(outdatedToken: String, updatedToken: String) = FcmResponse(1234, 1, 0, 1, FcmResult(Some(outdatedToken), Some(updatedToken), None) :: Nil).asJson.toString()
+  private def failedResponse(error: String) = s"""{"error_code": "$error"}"""
 }

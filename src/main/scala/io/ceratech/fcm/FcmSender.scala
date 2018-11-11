@@ -3,7 +3,9 @@ package io.ceratech.fcm
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.circe._
 import com.typesafe.scalalogging.Logger
+import io.ceratech.fcm.auth.FirebaseAuthenticator
 import io.circe.Error
+import io.circe.parser._
 import io.circe.syntax._
 import javax.inject.Inject
 
@@ -14,7 +16,7 @@ import scala.concurrent.{ExecutionContext, Future}
   *
   * @author dries
   */
-class FcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val tokenRepository: TokenRepository)(implicit ec: ExecutionContext) {
+class FcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val tokenRepository: TokenRepository, val firebaseAuthenticator: FirebaseAuthenticator)(implicit ec: ExecutionContext) {
 
   import FcmJsonFormats._
 
@@ -24,58 +26,57 @@ class FcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val tokenRep
 
   private lazy val fcmConfig: FcmConfig = fcmConfigProvider.config
 
-  def sendNotification(notification: FcmNotification, token: String): Future[Boolean] = {
-    sendNotification(notification, token :: Nil)
-  }
+  /**
+    * Send a message through FCM
+    *
+    * @param message the mesasge to send
+    * @return the name assigned by FCM as result of sending the message
+    */
+  def sendMessage(message: FcmMessage): Future[Option[String]] = {
+    val body = buildBody(message)
 
-  def sendNotification(notification: FcmNotification, tokens: Seq[String]): Future[Boolean] = {
-    val body = buildNotification(notification, tokens)
+    val call = firebaseAuthenticator.token.map {
+      case Some(token) ⇒ token
+      case _ ⇒ throw FcmException("No Google token to make FCM calls")
+    }.flatMap { token ⇒
+      sttp.headers("Authorization" → token.authHeader)
+        .body(body)
+        .post(uri"${fcmConfig.endpoint}")
+        .response(asJson[FcmResponse])
+        .send()
+    }
 
-    val call = sttp.headers("Authorization" → s"Bearer ${fcmConfig.endpoint}")
-      .body(body)
-      .post(uri"${fcmConfig.endpoint}")
-      .response(asJson[FcmResponse])
-      .send()
-      .zip(Future.successful(tokens))
-
-
-    call.flatMap { case (response, originalTokens) ⇒
-      handleFcmResponse(response, originalTokens)
+    call.flatMap {
+      handleFcmResponse(_, message)
     }
   }
 
-  def handleFcmResponse(response: Response[Either[DeserializationError[Error], FcmResponse]], origTokens: Seq[String]): Future[Boolean] = {
+  def handleFcmResponse(response: Response[Either[DeserializationError[Error], FcmResponse]], origMessage: FcmMessage): Future[Option[String]] = {
     response.body match {
       case Right(body) ⇒ body match {
         case Right(obj) ⇒
-          val result = obj.failure == 0
-          if (obj.success == origTokens.size) {
-            logger.debug(s"All (${obj.success} push notifications sent successfully")
-          }
-
-          Future.sequence(obj.results.zip(origTokens).map {
-            case (res, origToken) ⇒
-              val updateToken = res.registration_id.map { newToken ⇒
-                tokenRepository.updateToken(origToken, newToken)
-              }.getOrElse(Future.successful(()))
-
-              val deleteToken = res.error.map {
-                case FcmErrors.invalidRegistration | FcmErrors.unregisteredDevice ⇒
-                  logger.debug(s"Invalid/unknown registration token $origToken, removing token")
-                  tokenRepository.deleteToken(origToken)
-                case err ⇒
-                  logger.debug(s"Error sending push notifications: $err (messageId: ${res.message_id.getOrElse("<unkown>")})")
-                  Future.successful(())
-              }.getOrElse(Future.successful(())).map(_ ⇒ ())
-
-              updateToken.zip(deleteToken).map(_ ⇒ ())
-          }).map(_ ⇒ result)
+          logger.debug(s"FCM message sent successfully")
+          Future.successful(Some(obj.name))
         case Left(jsonError) ⇒
+          logger.error(s"Error while decoding FCM JSON response: ${jsonError.message}")
           Future.failed(FcmException(jsonError.message))
       }
-      case Left(err) ⇒ Future.failed(FcmException(err))
+      case Left(err) ⇒
+        decode[FcmError](err) match {
+          case Right(error) if FcmErrors.InvalidTokens.contains(error.error_code) ⇒
+            origMessage.target match {
+              case FcmTokenTarget(token) ⇒
+                logger.debug(s"Token (no longer) valid: '$token', deleting")
+                tokenRepository.deleteToken(token).map(_ ⇒ None)
+              case _ ⇒ Future.successful(None)
+            }
+          case _ ⇒
+            logger.debug(s"FCM error response: $err")
+            Future.failed(FcmException(err))
+
+        }
     }
   }
 
-  private def buildNotification(notification: FcmNotification, tokens: Seq[String]) = FcmMessage(tokens, fcmConfig.dryRun, notification).asJson
+  private def buildBody(message: FcmMessage) = FcmBody(fcmConfig.validateOnly, message).asJson
 }

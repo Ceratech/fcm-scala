@@ -10,7 +10,7 @@ import scala.io.Source
   *
   * @author dries
   */
-case class FcmConfig(endpoint: String, keyFile: String, dryRun: Boolean, tokenEndpoint: String) {
+case class FcmConfig(endpoint: String, keyFile: String, validateOnly: Boolean, tokenEndpoint: String) {
 
   import io.ceratech.fcm.auth.GoogleJsonFormats._
 

@@ -19,7 +19,7 @@ import scala.concurrent.{ExecutionContext, Future}
   *
   * @author dries
   */
-class FirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with OptionValues {
+class DefaultFirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with OptionValues {
 
   private lazy val config = ConfigFactory.load("application.test")
 
@@ -33,9 +33,8 @@ class FirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with OptionV
 
     "token" should {
       "fetch a token if there is not cached token" taggedAs(Network, Slow) in {
-        val backend = AsyncHttpClientFutureBackend()
-        val configProvider = new TestFcmConfigProvider(backend)
-        val authenticator = new FirebaseAuthenticator(configProvider)
+        val configProvider = new DefaultFcmConfigProvider(config)
+        val authenticator = new DefaultFirebaseAuthenticator(configProvider)
 
         authenticator.token.map { maybeToken ⇒
           maybeToken should not be empty
@@ -58,7 +57,7 @@ class FirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with OptionV
 
 
         val configProvider = new TestFcmConfigProvider(backend)
-        val authenticator = new FirebaseAuthenticator(configProvider)
+        val authenticator = new DefaultFirebaseAuthenticator(configProvider)
 
         // Call 2 times; if the cache isn't used the second actual call to the mock server gives an 400; effectively returning a [[None]]
         authenticator.token.flatMap { _ ⇒
@@ -74,7 +73,7 @@ class FirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with OptionV
           .thenRespondWithCode(400)
 
         val configProvider = new TestFcmConfigProvider(backend)
-        val authenticator = new FirebaseAuthenticator(configProvider)
+        val authenticator = new DefaultFirebaseAuthenticator(configProvider)
 
         authenticator.token.map { token ⇒
           token shouldBe empty
@@ -87,7 +86,7 @@ class FirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with OptionV
           .thenRespond("No JSON")
 
         val configProvider = new TestFcmConfigProvider(backend)
-        val authenticator = new FirebaseAuthenticator(configProvider)
+        val authenticator = new DefaultFirebaseAuthenticator(configProvider)
 
         authenticator.token.map { token ⇒
           token shouldBe empty
@@ -101,7 +100,7 @@ class FirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with OptionV
 
         val backend = SttpBackendStub.asynchronousFuture
         val configProvider = new TestFcmConfigProvider(backend)
-        val authenticator = new FirebaseAuthenticator(configProvider)
+        val authenticator = new DefaultFirebaseAuthenticator(configProvider)
 
         val assertion = authenticator.createAssertion(time)
         assertion.length should be > 0

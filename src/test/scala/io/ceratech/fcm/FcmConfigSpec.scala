@@ -25,7 +25,7 @@ class FcmConfigSpec extends WordSpec with Matchers {
     "give an error when the config has a non existant key file path" in {
       val configuration = ConfigFactory.parseMap(Map(
         "fcm.endpoint" → "endpoint",
-        "fcm.dry-run" → true,
+        "fcm.validate-only" → true,
         "fcm.key-file" → "/doesnt/exist",
         "fcm.token-endpoint" → "endpoint"
       ).asJava)
@@ -38,7 +38,7 @@ class FcmConfigSpec extends WordSpec with Matchers {
     "give an error when the config has a non JSON key file path" in {
       val configuration = ConfigFactory.parseMap(Map(
         "fcm.endpoint" → "endpoint",
-        "fcm.dry-run" → true,
+        "fcm.validate-only" → true,
         "fcm.key-file" → "src/test/resources/key-invalid.json",
         "fcm.token-endpoint" → "endpoint"
       ).asJava)

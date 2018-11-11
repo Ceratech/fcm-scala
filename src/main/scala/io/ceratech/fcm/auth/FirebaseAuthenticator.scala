@@ -1,23 +1,36 @@
 package io.ceratech.fcm.auth
 
-import java.time.{Clock, Duration, Instant}
+import java.time.{Duration, Instant}
 
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.circe._
 import com.typesafe.scalalogging.Logger
 import io.ceratech.fcm.auth.GoogleJsonFormats._
 import io.ceratech.fcm.{FcmConfig, FcmConfigProvider, FcmSender}
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import pdi.jwt.{JwtAlgorithm, JwtCirce, JwtClaim, JwtHeader}
 
 import scala.concurrent.{ExecutionContext, Future}
+
+/**
+  * Handles authentication with Firebase for making authorized API calls
+  */
+trait FirebaseAuthenticator {
+  /**
+    * Gets the access token to use for FCM calls
+    *
+    * @return the result of fechting of the access token  call
+    */
+  def token: Future[Option[GoogleToken]]
+}
 
 /**
   * Handles, token, authentication with Firebase
   *
   * @author dries
   */
-class FirebaseAuthenticator @Inject()(val fcmConfigProvider: FcmConfigProvider, val clock: Clock = Clock.systemDefaultZone())(implicit ec: ExecutionContext) {
+@Singleton
+class DefaultFirebaseAuthenticator @Inject()(val fcmConfigProvider: FcmConfigProvider)(implicit ec: ExecutionContext) extends FirebaseAuthenticator {
 
   private val Scope = "https://www.googleapis.com/auth/firebase.messaging"
   private val GrantType = "urn:ietf:params:oauth:grant-type:jwt-bearer"
@@ -30,14 +43,11 @@ class FirebaseAuthenticator @Inject()(val fcmConfigProvider: FcmConfigProvider, 
 
   // After we fetch the token for the 1st time it's usuable for a period of time before it needs to be
   // fetched again. This vars cache the value and determine when it expires and thus needs to be refetched
-  private var expires: Instant = Instant.now(clock)
+  private var expires: Instant = Instant.now()
   private var cachedToken: Option[GoogleToken] = None
 
-  /**
-    * Gets the access token to use for FCM calls
-    */
-  def token: Future[Option[GoogleToken]] = {
-    if (cachedToken.isEmpty || Instant.now(clock).isAfter(expires)) {
+  override def token: Future[Option[GoogleToken]] = {
+    if (cachedToken.isEmpty || Instant.now().isAfter(expires)) {
       val time = Instant.now()
       val assertion = createAssertion(time)
 

@@ -4,55 +4,76 @@ import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.syntax._
 
+case class FcmBody(validate_only: Boolean, message: FcmMessage)
+
 /**
-  * Message that gets send to FCM
+  * Message that gets send to FCM and gets returned as response
   *
   * @author dries
   */
-case class FcmMessage(registrationIds: Seq[String], dryRun: Boolean, notification: FcmNotification)
+case class FcmMessage(notification: FcmNotification, target: FcmTarget, data: Map[String, String] = Map())
+
+/**
+  * FCM accepts different types of targets; they all have different keys; only 1 can be present at the same time
+  */
+trait FcmTarget {
+  val target: String
+  val value: String
+
+  def asJson: (String, Json) = target → Json.fromString(value)
+}
+
+case class FcmTokenTarget(value: String) extends FcmTarget {
+  override val target: String = "token"
+}
+
+case class FcmTopicTarget(value: String) extends FcmTarget {
+  override val target: String = "topic"
+}
+
+case class FcmConditionTarget(value: String) extends FcmTarget {
+  override val target: String = "condition"
+}
 
 /**
   * Notification
-  *
-  * @author dries
   */
-case class FcmNotification(body: Option[String], title: Option[String] = None, badge: Option[String] = None)
+case class FcmNotification(body: Option[String], title: Option[String] = None)
 
 /**
   * FCM response object
-  *
-  * @author dries
   */
-case class FcmResponse(multicast_id: Long, success: Int, failure: Int, canonical_ids: Int, results: Seq[FcmResult])
+case class FcmResponse(name: String)
 
 /**
-  * An individual message result
-  *
-  * @author dries
+  * FCM error responde
   */
-case class FcmResult(message_id: Option[String], registration_id: Option[String], error: Option[String])
+case class FcmError(error_code: String)
 
 /**
   * JSON formats
   */
 object FcmJsonFormats {
   implicit val fcmMessageEncoder: Encoder[FcmMessage] = (m: FcmMessage) => Json.obj(
-    ("registration_ids", Json.arr(m.registrationIds.map(Json.fromString): _*)),
-    ("dry_run", Json.fromBoolean(m.dryRun)),
-    ("notification", m.notification.asJson)
+    ("notification", m.notification.asJson),
+    m.target.asJson,
+    ("data", m.data.asJson)
   )
-  implicit val fcmNotificationEncoder: Encoder[FcmNotification] = deriveEncoder[FcmNotification]
 
-  implicit val fcmResultDecoder: Decoder[FcmResult] = deriveDecoder[FcmResult]
-  implicit val fcmResultEncoder: Encoder[FcmResult] = deriveEncoder[FcmResult]
+  implicit val fcmNotificationEncoder: Encoder[FcmNotification] = deriveEncoder[FcmNotification]
+  implicit val fcmBodyEncoder: Encoder[FcmBody] = deriveEncoder[FcmBody]
+
   implicit val fcmResponseDecoder: Decoder[FcmResponse] = deriveDecoder[FcmResponse]
   implicit val fcmResponseEncoder: Encoder[FcmResponse] = deriveEncoder[FcmResponse]
+  implicit val fcmErrorDecoder: Decoder[FcmError] = deriveDecoder[FcmError]
 }
 
 /**
-  * Possible FCM error codes
+  * Possible FCM error codes upon which we act
   */
 object FcmErrors {
-  val unregisteredDevice: String = "NotRegistered"
-  val invalidRegistration: String = "InvalidRegistration"
+  val SenderIdMismatch: String = "SENDER_ID_MISMATCH"
+  val Unregistered: String = "UNREGISTERED"
+
+  val InvalidTokens = Set(SenderIdMismatch, Unregistered)
 }
