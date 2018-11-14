@@ -24,13 +24,14 @@ Easiest is to use a [Typesafe Config](https://github.com/lightbend/config) file 
 
 ```
 fcm {
-  endpoint = "<Google endpoint e.g.: https://fcm.googleapis.com/fcm/send>"
-  key = "<your API key, available in the developer console>"
-  dry-run = true # If true FCM will only validate your notifications but not send them!
+  endpoint = "<Google endpoint e.g.: https://fcm.googleapis.com/v1/{parent=projects/*}/messages:send"
+  key-file = "Path to the JSON key file"
+  validate-only = true # If true FCM will only validate your notifications but not send them!
+  token-endpoint = "<Google token endpoint, optional, defaults to: https://www.googleapis.com/oauth2/v4/token>"
 }
 ```
 
-Bind the `DefaultFcmConfigProvider` dependency to read the configuration from the `application.conf`:
+Bind the `DefaultFcmConfigProvider` dependency to read the configuration from the `application.conf`, in case of Goolge Guice:
 
 ```scala
 bind(classOf[FcmConfigProvider]).to(classOf[DefaultFcmConfigProvider])
@@ -50,4 +51,4 @@ bind(classOf[TokenRepository]).to(classOf[MyTokenRepository])
 
 ### Sending notifications
 
-Inject an instance of `io.ceratech.fcm.FcmSender` into your desired class and call `sendNotification(FcmNotification, token)`. The `FcmNotification` case class contains the fields you can supply to FCM.
+Inject an instance of `io.ceratech.fcm.FcmSender` into your desired class and call `sendMessage(FcmNotification, token)`. The `FcmMessage` case class contains the fields you can supply to FCM.

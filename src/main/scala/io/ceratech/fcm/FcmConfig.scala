@@ -10,7 +10,7 @@ import scala.io.Source
   *
   * @author dries
   */
-case class FcmConfig(endpoint: String, keyFile: String, validateOnly: Boolean, tokenEndpoint: String) {
+case class FcmConfig(endpoint: String, keyFile: String, validateOnly: Boolean, tokenEndpoint: String = "https://www.googleapis.com/oauth2/v4/token") {
 
   import io.ceratech.fcm.auth.GoogleJsonFormats._
 
