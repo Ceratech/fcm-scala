@@ -20,7 +20,13 @@ This library makes use of the [STTP HTTP Client](https://sttp.readthedocs.io/en/
 
 ### Configuration
 
-Easiest is to use a [Typesafe Config](https://github.com/lightbend/config) file to configure FCM. In your `application.conf` add the following configuration:
+Bind the `DefaultFcmSender` to use it in your application, for example using Google Guice:
+
+```scala
+bind(classOf[FcmSender]).to(classOf[DefaultFcmSender])
+``` 
+
+The `FcmSender` needs configuration, easiest is to use a [Typesafe Config](https://github.com/lightbend/config) file to configure FCM. In your `application.conf` add the following configuration:
 
 ```
 fcm {
@@ -31,7 +37,7 @@ fcm {
 }
 ```
 
-Bind the `DefaultFcmConfigProvider` dependency to read the configuration from the `application.conf`, in case of Goolge Guice:
+Bind the `DefaultFcmConfigProvider` dependency to read the configuration from the `application.conf`, in case of Google Guice:
 
 ```scala
 bind(classOf[FcmConfigProvider]).to(classOf[DefaultFcmConfigProvider])

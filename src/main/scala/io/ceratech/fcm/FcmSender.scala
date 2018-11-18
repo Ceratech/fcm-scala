@@ -7,32 +7,40 @@ import io.ceratech.fcm.auth.FirebaseAuthenticator
 import io.circe.Error
 import io.circe.parser._
 import io.circe.syntax._
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
-  * Sends notifications through the FCM API and handles the responses
-  *
-  * @author dries
+  * FCM functions
   */
-class FcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val tokenRepository: TokenRepository, val firebaseAuthenticator: FirebaseAuthenticator)(implicit ec: ExecutionContext) {
-
-  import FcmJsonFormats._
-
-  private implicit val backend: SttpBackend[Future, Nothing] = fcmConfigProvider.constructBackend
-
-  private val logger: Logger = Logger(classOf[FcmSender])
-
-  private lazy val fcmConfig: FcmConfig = fcmConfigProvider.config
-
+trait FcmSender {
   /**
     * Send a message through FCM
     *
     * @param message the mesasge to send
     * @return the name assigned by FCM as result of sending the message
     */
-  def sendMessage(message: FcmMessage): Future[Option[String]] = {
+  def sendMessage(message: FcmMessage): Future[Option[String]]
+}
+
+/**
+  * Sends notifications through the FCM API and handles the responses
+  *
+  * @author dries
+  */
+@Singleton
+class DefaultFcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val tokenRepository: TokenRepository, val firebaseAuthenticator: FirebaseAuthenticator)(implicit ec: ExecutionContext) extends FcmSender {
+
+  import FcmJsonFormats._
+
+  private implicit val backend: SttpBackend[Future, Nothing] = fcmConfigProvider.constructBackend
+
+  private val logger: Logger = Logger(classOf[DefaultFcmSender])
+
+  private lazy val fcmConfig: FcmConfig = fcmConfigProvider.config
+
+  override def sendMessage(message: FcmMessage): Future[Option[String]] = {
     val body = buildBody(message)
 
     val call = firebaseAuthenticator.token.map {
