@@ -12,7 +12,7 @@ This small Scala Library makes it easy to send a notification through the FCM HT
 
 This library makes use of the [STTP HTTP Client](https://sttp.readthedocs.io/en/latest/) and the [Circe JSON library](circe.github.io/circe/).
 
-## Requirements
+## Requirements8
 
 * Scala 2.12.x
 
@@ -20,11 +20,23 @@ This library makes use of the [STTP HTTP Client](https://sttp.readthedocs.io/en/
 
 ### Configuration
 
-Bind the `DefaultFcmSender` to use it in your application, for example using Google Guice:
+Either construct an instance of `DefaultFcmSender` and supply the necessary parameters or use your favorite DI framework.
+
+#### DI configuration (using Google Guice)
+
+Bind the `DefaultFcmSender` to use it in your application:
 
 ```scala
 bind(classOf[FcmSender]).to(classOf[DefaultFcmSender])
 ``` 
+
+Bind the `DefaultFirebaseAuthenticator`:
+
+```scala
+bind(classOf[FirebaseAuthenticator]).to(classOf[DefaultFirebaseAuthenticator])
+```
+
+#### FCM configuration
 
 The `FcmSender` needs configuration, easiest is to use a [Typesafe Config](https://github.com/lightbend/config) file to configure FCM. In your `application.conf` add the following configuration:
 
