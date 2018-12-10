@@ -11,7 +11,7 @@ case class FcmBody(validate_only: Boolean, message: FcmMessage)
   *
   * @author dries
   */
-case class FcmMessage(notification: FcmNotification, target: FcmTarget, data: Map[String, String] = Map())
+case class FcmMessage(notification: FcmNotification, target: FcmTarget, data: Map[String, String] = Map(), apns: Option[FcmApnsConfig] = None, android: Map[String, Json] = Map())
 
 /**
   * FCM accepts different types of targets; they all have different keys; only 1 can be present at the same time
@@ -41,6 +41,11 @@ case class FcmConditionTarget(value: String) extends FcmTarget {
 case class FcmNotification(body: Option[String], title: Option[String] = None)
 
 /**
+  * APNS specific fields that can be sent trough FCM for iOS devices
+  */
+case class FcmApnsConfig(headers: Map[String, String], payload: Map[String, Json])
+
+/**
   * FCM response object
   */
 case class FcmResponse(name: String)
@@ -62,6 +67,7 @@ object FcmJsonFormats {
 
   implicit val fcmNotificationEncoder: Encoder[FcmNotification] = deriveEncoder[FcmNotification]
   implicit val fcmBodyEncoder: Encoder[FcmBody] = deriveEncoder[FcmBody]
+  implicit val fcmApnsConfigEncoder: Encoder[FcmApnsConfig] = deriveEncoder[FcmApnsConfig]
 
   implicit val fcmResponseDecoder: Decoder[FcmResponse] = deriveDecoder[FcmResponse]
   implicit val fcmResponseEncoder: Encoder[FcmResponse] = deriveEncoder[FcmResponse]
