@@ -62,7 +62,9 @@ object FcmJsonFormats {
   implicit val fcmMessageEncoder: Encoder[FcmMessage] = (m: FcmMessage) => Json.obj(
     ("notification", m.notification.asJson),
     m.target.asJson,
-    ("data", m.data.asJson)
+    ("data", m.data.asJson),
+    ("apns", m.apns.asJson),
+    ("android", m.android.asJson)
   )
 
   implicit val fcmNotificationEncoder: Encoder[FcmNotification] = deriveEncoder[FcmNotification]

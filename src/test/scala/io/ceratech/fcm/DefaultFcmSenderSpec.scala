@@ -6,6 +6,7 @@ import com.typesafe.config.ConfigFactory
 import io.ceratech.fcm.auth.{FirebaseAuthenticator, GoogleToken}
 import org.scalamock.scalatest.AsyncMockFactory
 import org.scalatest.{AsyncWordSpec, EitherValues, Matchers}
+import io.circe.syntax._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -36,7 +37,11 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
         val fcmSender = new DefaultFcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
 
         val token = "123ab"
-        val message = FcmMessage(FcmNotification(body = Some("body")), FcmTokenTarget(token))
+        val message = FcmMessage(FcmNotification(body = Some("body")), FcmTokenTarget(token), apns = Some(FcmApnsConfig(Map(), Map(
+          "aps" → Map(
+            "badge" → 8
+          ).asJson
+        ))))
 
         (firebaseAuthenticator.token _).expects().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
 
