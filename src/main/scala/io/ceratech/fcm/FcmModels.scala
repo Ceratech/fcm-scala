@@ -51,9 +51,19 @@ case class FcmApnsConfig(headers: Map[String, String], payload: Map[String, Json
 case class FcmResponse(name: String)
 
 /**
-  * FCM error responde
+  * FCM error response
   */
-case class FcmError(error_code: String)
+case class FcmError(code: Int, message: String, status: String, details: Seq[FcmErrorDetail])
+
+/**
+  * Details about an error thrown by FCM
+  */
+case class FcmErrorDetail(errorCode: String)
+
+/**
+  * Error wrapper
+  */
+case class FcmErrorWrapper(error: FcmError)
 
 /**
   * JSON formats
@@ -73,7 +83,9 @@ object FcmJsonFormats {
 
   implicit val fcmResponseDecoder: Decoder[FcmResponse] = deriveDecoder[FcmResponse]
   implicit val fcmResponseEncoder: Encoder[FcmResponse] = deriveEncoder[FcmResponse]
+  implicit val fcmErrorWrapperDecoder: Decoder[FcmErrorWrapper] = deriveDecoder[FcmErrorWrapper]
   implicit val fcmErrorDecoder: Decoder[FcmError] = deriveDecoder[FcmError]
+  implicit val fcmErrorDetailDecoder: Decoder[FcmErrorDetail] = deriveDecoder[FcmErrorDetail]
 }
 
 /**
@@ -83,5 +95,5 @@ object FcmErrors {
   val SenderIdMismatch: String = "SENDER_ID_MISMATCH"
   val Unregistered: String = "UNREGISTERED"
 
-  val InvalidTokens = Set(SenderIdMismatch, Unregistered)
+  val InvalidTokens: Set[String] = Set(SenderIdMismatch, Unregistered)
 }

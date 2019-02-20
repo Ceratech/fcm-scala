@@ -4,9 +4,9 @@ import com.softwaremill.sttp.SttpBackend
 import com.softwaremill.sttp.testing.SttpBackendStub
 import com.typesafe.config.ConfigFactory
 import io.ceratech.fcm.auth.{FirebaseAuthenticator, GoogleToken}
+import io.circe.syntax._
 import org.scalamock.scalatest.AsyncMockFactory
 import org.scalatest.{AsyncWordSpec, EitherValues, Matchers}
-import io.circe.syntax._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -168,5 +168,18 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
 
   private val successfullResponse = """{"name":"message-id-from-fcm"}"""
 
-  private def failedResponse(error: String) = s"""{"error_code": "$error"}"""
+  private def failedResponse(error: String) =
+    s"""{
+      "error": {
+        "code": 404,
+        "message": "Requested entity was not found.",
+        "status": "NOT_FOUND",
+        "details": [
+          {
+            "@type": "type.googleapis.com/google.firebase.fcm.v1.FcmError",
+            "errorCode": "$error"
+          }
+        ]
+      }
+    }""".stripMargin
 }
