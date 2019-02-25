@@ -1,5 +1,6 @@
 package io.ceratech.fcm
 
+import io.circe.Decoder.Result
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.syntax._
@@ -58,7 +59,7 @@ case class FcmError(code: Int, message: String, status: String, details: Seq[Fcm
 /**
   * Details about an error thrown by FCM
   */
-case class FcmErrorDetail(errorCode: String)
+case class FcmErrorDetail(errorCode: Option[String])
 
 /**
   * Error wrapper

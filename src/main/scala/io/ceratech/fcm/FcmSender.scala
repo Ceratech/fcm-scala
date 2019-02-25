@@ -72,7 +72,7 @@ class DefaultFcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val t
       case Left(err) ⇒
         val decodedError = decode[FcmErrorWrapper](err)
         decodedError match {
-          case Right(wrapper) if FcmErrors.InvalidTokens.intersect(wrapper.error.details.map(_.errorCode).toSet).nonEmpty ⇒
+          case Right(wrapper) if FcmErrors.InvalidTokens.intersect(wrapper.error.details.filter(_.errorCode.isDefined).map(_.errorCode.get).toSet).nonEmpty ⇒
             origMessage.target match {
               case FcmTokenTarget(token) ⇒
                 logger.debug(s"Token (no longer) valid: '$token', deleting")

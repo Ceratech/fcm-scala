@@ -178,6 +178,11 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
           {
             "@type": "type.googleapis.com/google.firebase.fcm.v1.FcmError",
             "errorCode": "$error"
+          },
+          {
+            "@type": "type.googleapis.com/google.firebase.fcm.v1.ApnsError",
+            "statusCode": 410,
+            "reason": "Unregistered"
           }
         ]
       }
