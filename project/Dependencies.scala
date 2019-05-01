@@ -3,11 +3,13 @@ import sbt._
 object Dependencies {
   private val circeVersion = "0.10.1"
   private val sttpVersion = "1.4.2"
+  private val retryVersion = "0.3.2"
 
   lazy val sttp = Seq(
     "com.softwaremill.sttp" %% "core" % sttpVersion,
     "com.softwaremill.sttp" %% "circe" % sttpVersion,
-    "com.softwaremill.sttp" %% "async-http-client-backend-future" % sttpVersion
+    "com.softwaremill.sttp" %% "async-http-client-backend-future" % sttpVersion,
+    "com.softwaremill.retry" %% "retry" % retryVersion
   )
 
   lazy val circe = Seq(

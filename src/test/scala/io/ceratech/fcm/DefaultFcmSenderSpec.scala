@@ -103,7 +103,7 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
 
       val fcmSender = new DefaultFcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
 
-      (firebaseAuthenticator.token _).expects().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
+      (firebaseAuthenticator.token _).expects().anyNumberOfTimes().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
 
       recoverToSucceededIf[FcmException] {
         fcmSender.sendMessage(FcmMessage(FcmNotification(body = Some("123")), FcmTokenTarget(token)))
@@ -121,7 +121,7 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
 
       val fcmSender = new DefaultFcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
 
-      (firebaseAuthenticator.token _).expects().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
+      (firebaseAuthenticator.token _).expects().anyNumberOfTimes().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
 
       recoverToSucceededIf[FcmException] {
         fcmSender.sendMessage(FcmMessage(FcmNotification(body = Some("123")), FcmTokenTarget(token)))
@@ -139,7 +139,7 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
 
       val fcmSender = new DefaultFcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
 
-      (firebaseAuthenticator.token _).expects().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
+      (firebaseAuthenticator.token _).expects().anyNumberOfTimes().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
       (tokenRepository.deleteToken _).expects(token).never()
 
       recoverToSucceededIf[FcmException] {
@@ -158,7 +158,7 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
 
       val fcmSender = new DefaultFcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
 
-      (firebaseAuthenticator.token _).expects().returns(Future.successful(None))
+      (firebaseAuthenticator.token _).expects().anyNumberOfTimes().returns(Future.successful(None))
 
       recoverToSucceededIf[FcmException] {
         fcmSender.sendMessage(FcmMessage(FcmNotification(body = Some("123")), FcmTokenTarget(token)))

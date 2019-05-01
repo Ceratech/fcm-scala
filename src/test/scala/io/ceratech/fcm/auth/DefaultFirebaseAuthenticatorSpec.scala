@@ -1,8 +1,7 @@
 package io.ceratech.fcm.auth
 
-import java.time.{Clock, Instant, ZoneId}
+import java.time.Instant
 
-import com.softwaremill.sttp.asynchttpclient.future.AsyncHttpClientFutureBackend
 import com.softwaremill.sttp.testing.SttpBackendStub
 import com.softwaremill.sttp.{Response, SttpBackend}
 import com.typesafe.config.ConfigFactory

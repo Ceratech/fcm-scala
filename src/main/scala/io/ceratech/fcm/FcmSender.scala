@@ -10,6 +10,7 @@ import io.circe.syntax._
 import javax.inject.{Inject, Singleton}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 /**
   * FCM functions
@@ -41,6 +42,15 @@ class DefaultFcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val t
   private lazy val fcmConfig: FcmConfig = fcmConfigProvider.config
 
   override def sendMessage(message: FcmMessage): Future[Option[String]] = {
+    implicit val callSuccess: retry.Success[Any] = retry.Success.always
+    val policy = retry.When {
+      case NonFatal(e) if e.isInstanceOf[FcmException] ⇒ retry.Backoff(max = 3)
+    }
+
+    policy(() ⇒ runCall(message))
+  }
+
+  private def runCall(message: FcmMessage): Future[Option[String]] = {
     val body = buildBody(message)
 
     val call = firebaseAuthenticator.token.map {
