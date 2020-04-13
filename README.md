@@ -12,9 +12,9 @@ This small Scala Library makes it easy to send a notification through the FCM HT
 
 This library makes use of the [STTP HTTP Client](https://sttp.readthedocs.io/en/latest/) and the [Circe JSON library](circe.github.io/circe/).
 
-## Requirements8
+## Requirements
 
-* Scala 2.12.x
+* Scala 2.13.x/2.12.x
 
 ## Usage
 
