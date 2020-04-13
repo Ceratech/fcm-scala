@@ -24,7 +24,7 @@ after_success:
 
 deploy:
   provider: script
-  script: sbt ++$TRAVIS_SCALA_VERSION publish
+  script: sbt +publish publish
   skip_cleanup: true
   on:
     tags: true
