@@ -8,7 +8,7 @@ lazy val root = (project in file(".")).
     inThisBuild(List(
       organization := "io.ceratech",
       scalaVersion := "2.13.3",
-      crossScalaVersions := Seq("2.12.11")
+      crossScalaVersions := Seq("2.13.3", "2.12.11")
     )),
 
     autoScalaLibrary := true,
