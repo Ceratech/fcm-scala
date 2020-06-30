@@ -2,13 +2,14 @@ package io.ceratech.fcm.auth
 
 import java.time.{Duration, Instant}
 
-import com.softwaremill.sttp._
-import com.softwaremill.sttp.circe._
 import com.typesafe.scalalogging.Logger
 import io.ceratech.fcm.auth.GoogleJsonFormats._
 import io.ceratech.fcm.{FcmConfig, FcmConfigProvider, FcmSender}
 import javax.inject.{Inject, Singleton}
 import pdi.jwt.{JwtAlgorithm, JwtCirce, JwtClaim, JwtHeader}
+import sttp.client._
+import sttp.client.asynchttpclient.WebSocketHandler
+import sttp.client.circe._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -35,7 +36,7 @@ class DefaultFirebaseAuthenticator @Inject()(val fcmConfigProvider: FcmConfigPro
   private val Scope = "https://www.googleapis.com/auth/firebase.messaging"
   private val GrantType = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 
-  private implicit val backend: SttpBackend[Future, Nothing] = fcmConfigProvider.constructBackend
+  private implicit val backend: SttpBackend[Future, Nothing, Nothing] = fcmConfigProvider.constructBackend
 
   private val logger: Logger = Logger(classOf[FcmSender])
 
@@ -51,22 +52,17 @@ class DefaultFirebaseAuthenticator @Inject()(val fcmConfigProvider: FcmConfigPro
       val time = Instant.now()
       val assertion = createAssertion(time)
 
-      sttp
+      basicRequest
         .body("grant_type" → GrantType, "assertion" → assertion)
         .post(uri"${fcmConfig.tokenEndpoint}")
         .response(asJson[GoogleToken])
         .send()
         .map { response ⇒
           response.body match {
-            case Right(body) ⇒ body match {
-              case Right(obj) ⇒
-                cachedToken = Some(obj)
-                expires = time.plusSeconds(obj.expires_in)
-                cachedToken
-              case Left(jsonError) ⇒
-                logger.error(s"Error decoding access token: ${jsonError.message}")
-                None
-            }
+            case Right(obj) ⇒
+              cachedToken = Some(obj)
+              expires = time.plusSeconds(obj.expires_in)
+              cachedToken
             case Left(err) ⇒
               logger.error(s"Error getting access token: $err")
               None

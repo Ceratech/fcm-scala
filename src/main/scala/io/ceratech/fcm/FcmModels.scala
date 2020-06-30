@@ -1,6 +1,5 @@
 package io.ceratech.fcm
 
-import com.softwaremill.sttp.StatusCodes
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.syntax._

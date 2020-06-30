@@ -2,14 +2,17 @@ package io.ceratech.fcm.auth
 
 import java.time.Instant
 
-import com.softwaremill.sttp.testing.SttpBackendStub
-import com.softwaremill.sttp.{Response, SttpBackend}
 import com.typesafe.config.ConfigFactory
 import io.ceratech.fcm.DefaultFcmConfigProvider
 import io.ceratech.fcm.auth.GoogleJsonFormats._
 import io.circe.syntax._
+import org.scalatest.OptionValues
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.tagobjects.{Network, Slow}
-import org.scalatest.{AsyncWordSpec, Matchers, OptionValues}
+import org.scalatest.wordspec.AsyncWordSpec
+import sttp.client.testing.SttpBackendStub
+import sttp.client.{Response, SttpBackend}
+import sttp.model.StatusCode
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -22,8 +25,8 @@ class DefaultFirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with 
 
   private lazy val config = ConfigFactory.load("application.test")
 
-  private class TestFcmConfigProvider(backend: SttpBackend[Future, Nothing]) extends DefaultFcmConfigProvider(config) {
-    override def constructBackend: SttpBackend[Future, Nothing] = backend
+  private class TestFcmConfigProvider(backend: SttpBackend[Future, Nothing, Nothing]) extends DefaultFcmConfigProvider(config) {
+    override def constructBackend: SttpBackend[Future, Nothing, Nothing] = backend
   }
 
   implicit val exectutionContext: ExecutionContext = ExecutionContext.global
@@ -51,7 +54,7 @@ class DefaultFirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with 
               hit = true
               Response.ok(googleToken.asJson.toString())
             case _ ⇒
-              Response.error("FAIL", 400)
+              Response.apply("FAIL", StatusCode.BadRequest)
           }
 
 
@@ -69,7 +72,7 @@ class DefaultFirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with 
       "give a None when the response is not a 200" in {
         val backend = SttpBackendStub.asynchronousFuture
           .whenAnyRequest
-          .thenRespondWithCode(400)
+          .thenRespondWithCode(StatusCode.BadRequest)
 
         val configProvider = new TestFcmConfigProvider(backend)
         val authenticator = new DefaultFirebaseAuthenticator(configProvider)

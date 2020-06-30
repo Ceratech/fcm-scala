@@ -1,13 +1,14 @@
 package io.ceratech.fcm
 
-import com.softwaremill.sttp._
-import com.softwaremill.sttp.circe._
 import com.typesafe.scalalogging.Logger
 import io.ceratech.fcm.auth.FirebaseAuthenticator
 import io.circe.Error
 import io.circe.parser._
 import io.circe.syntax._
 import javax.inject.{Inject, Singleton}
+import sttp.client._
+import sttp.client.asynchttpclient.WebSocketHandler
+import sttp.client.circe._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -35,7 +36,7 @@ class DefaultFcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val t
 
   import FcmJsonFormats._
 
-  private implicit val backend: SttpBackend[Future, Nothing] = fcmConfigProvider.constructBackend
+  private implicit val backend: SttpBackend[Future, Nothing, Nothing] = fcmConfigProvider.constructBackend
 
   private val logger: Logger = Logger(classOf[DefaultFcmSender])
 
@@ -57,7 +58,7 @@ class DefaultFcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val t
       case Some(token) ⇒ token
       case _ ⇒ throw FcmException("No Google token to make FCM calls")
     }.flatMap { token ⇒
-      sttp.headers("Authorization" → token.authHeader)
+      basicRequest.header("Authorization", token.authHeader)
         .body(body)
         .post(uri"${fcmConfig.endpoint}")
         .response(asJson[FcmResponse])
@@ -69,18 +70,13 @@ class DefaultFcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val t
     }
   }
 
-  def handleFcmResponse(response: Response[Either[DeserializationError[Error], FcmResponse]], origMessage: FcmMessage): Future[Option[String]] = {
+  def handleFcmResponse(response: Response[Either[ResponseError[Error], FcmResponse]], origMessage: FcmMessage): Future[Option[String]] = {
     response.body match {
-      case Right(body) ⇒ body match {
-        case Right(obj) ⇒
-          logger.debug(s"FCM message sent successfully")
-          Future.successful(Some(obj.name))
-        case Left(jsonError) ⇒
-          logger.error(s"Error while decoding FCM JSON response: ${jsonError.message}")
-          Future.failed(FcmException(jsonError.message))
-      }
+      case Right(obj) ⇒
+        logger.debug(s"FCM message sent successfully")
+        Future.successful(Some(obj.name))
       case Left(err) ⇒
-        val decodedError = decode[FcmErrorWrapper](err)
+        val decodedError = decode[FcmErrorWrapper](err.body)
         decodedError match {
           case Right(wrapper) if FcmErrors.InvalidTokens.intersect(wrapper.error.details.filter(_.errorCode.isDefined).map(_.errorCode.get).toSet).nonEmpty ⇒
             origMessage.target match {
@@ -91,7 +87,7 @@ class DefaultFcmSender @Inject()(val fcmConfigProvider: FcmConfigProvider, val t
             }
           case _ ⇒
             logger.debug(s"FCM error response: $err")
-            Future.failed(FcmException(err))
+            Future.failed(FcmException(err.body, err))
 
         }
     }

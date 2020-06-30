@@ -1,12 +1,15 @@
 package io.ceratech.fcm
 
-import com.softwaremill.sttp.SttpBackend
-import com.softwaremill.sttp.testing.SttpBackendStub
 import com.typesafe.config.ConfigFactory
 import io.ceratech.fcm.auth.{FirebaseAuthenticator, GoogleToken}
 import io.circe.syntax._
 import org.scalamock.scalatest.AsyncMockFactory
-import org.scalatest.{AsyncWordSpec, EitherValues, Matchers}
+import org.scalatest.EitherValues
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AsyncWordSpec
+import sttp.client.SttpBackend
+import sttp.client.testing.SttpBackendStub
+import sttp.model.StatusCode
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -19,11 +22,13 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
 
   private lazy val config = ConfigFactory.load("application.test")
 
-  private class TestFcmConfigProvider(backend: SttpBackend[Future, Nothing]) extends DefaultFcmConfigProvider(config) {
-    override def constructBackend: SttpBackend[Future, Nothing] = backend
+  private class TestFcmConfigProvider(backend: SttpBackend[Future, Nothing, Nothing]) extends DefaultFcmConfigProvider(config) {
+    override def constructBackend: SttpBackend[Future, Nothing, Nothing] = backend
   }
 
   implicit val exectutionContext: ExecutionContext = ExecutionContext.global
+
+  private val successfullResponse = """{"name":"message-id-from-fcm"}"""
 
   "the FcmSender" when {
     "sendNotification with valid configuration" should {
@@ -60,7 +65,7 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
         val firebaseAuthenticator: FirebaseAuthenticator = mock[FirebaseAuthenticator]
         val backend = SttpBackendStub.asynchronousFuture
           .whenAnyRequest
-          .thenRespondWithCode(400, failedResponse(FcmErrors.Unregistered))
+          .thenRespondWithCode(StatusCode.BadRequest, failedResponse(FcmErrors.Unregistered))
 
         val fcmSender = new DefaultFcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
 
@@ -79,7 +84,7 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
         val firebaseAuthenticator: FirebaseAuthenticator = mock[FirebaseAuthenticator]
         val backend = SttpBackendStub.asynchronousFuture
           .whenAnyRequest
-          .thenRespondWithCode(400, failedResponse(FcmErrors.SenderIdMismatch))
+          .thenRespondWithCode(StatusCode.BadRequest, failedResponse(FcmErrors.SenderIdMismatch))
 
         val fcmSender = new DefaultFcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
 
@@ -117,7 +122,7 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
       val firebaseAuthenticator: FirebaseAuthenticator = mock[FirebaseAuthenticator]
       val backend = SttpBackendStub.asynchronousFuture
         .whenAnyRequest
-        .thenRespondWithCode(400)
+        .thenRespondWithCode(StatusCode.BadRequest)
 
       val fcmSender = new DefaultFcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)
 
@@ -165,8 +170,6 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
       }
     }
   }
-
-  private val successfullResponse = """{"name":"message-id-from-fcm"}"""
 
   private def failedResponse(error: String) =
     s"""{

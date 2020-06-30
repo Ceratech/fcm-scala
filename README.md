@@ -61,7 +61,7 @@ By default the `FcmConfigProvider` defaults to an async based STTP client; this 
 
 ### Token repository
 
-Implement the trait `io.ceratech.fcm.TokenRepository` in your codebase to handle updated/deleted tokens from the FCM server. The library expects an instance of the trait to be injectable. E.g. add the binding in code:
+Implement the trait `io.ceratech.fcm.TokenRepository` in your codebase to handle deleted tokens from the FCM server. The library expects an instance of the trait to be injectable. E.g. add the binding in code:
 
 ```scala
 bind(classOf[TokenRepository]).to(classOf[MyTokenRepository])

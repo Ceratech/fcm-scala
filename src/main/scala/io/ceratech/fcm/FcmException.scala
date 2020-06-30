@@ -5,4 +5,4 @@ package io.ceratech.fcm
   *
   * @author dries
   */
-case class FcmException(error: String) extends RuntimeException(error)
+case class FcmException(error: String, cause: Throwable = null) extends RuntimeException(error, cause)
