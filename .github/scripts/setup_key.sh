@@ -1,2 +1,2 @@
 #!/bin/sh
-echo "$KEY" > ./src/test/resource/key.json
+echo "$KEY" > ./src/test/resources/key.json
