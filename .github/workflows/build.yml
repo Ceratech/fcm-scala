@@ -35,3 +35,8 @@ jobs:
 
       - name: Run tests
         run: sbt clean coverage test coverageReport
+
+      - name: Publish coverage
+        run: bash <(curl -s https://codecov.io/bash)
+        env:
+          CODECOV_TOKEN: ${{ secret.CODECOV_TOKEN }}
