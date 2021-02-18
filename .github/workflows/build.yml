@@ -14,7 +14,7 @@ jobs:
       - name: Setup test key
         run: ./.github/scripts/setup_key.sh
         env:
-          KEY: ${{ secrets.KEY }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       - name: Test setup
         run: cat ./src/test/resources/key.json
       - name: Set up JDK 1.8
