@@ -1,7 +1,7 @@
 # Firebase Cloud Messaging wrapper for Scala 
 
 [![CI](https://github.com/Ceratech/fcm-scala/actions/workflows/build.yml/badge.svg)](https://github.com/Ceratech/fcm-scala/actions/workflows/build.yml)
-[![Download](https://api.bintray.com/packages/ceratech/maven/fcm-scala/images/download.svg) ](https://bintray.com/ceratech/maven/fcm-scala/_latestVersion)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.ceratech/fcm-scala_2.13/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.ceratech/fcm-scala_2.13)
 [![codecov](https://codecov.io/gh/Ceratech/fcm-scala/branch/master/graph/badge.svg?token=cxPA8zCaLN)](https://codecov.io/gh/Ceratech/fcm-scala)
 
 This small Scala Library makes it easy to send a notification through the FCM HTTP API. It allows you to:

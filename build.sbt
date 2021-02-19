@@ -34,7 +34,6 @@ lazy val root = (project in file(".")).
 
     name := "fcm-scala",
 
-
     libraryDependencies ++= sttp,
     libraryDependencies ++= circe,
     libraryDependencies ++= Seq(
