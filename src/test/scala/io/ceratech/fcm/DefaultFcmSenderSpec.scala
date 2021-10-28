@@ -7,8 +7,8 @@ import org.scalamock.scalatest.AsyncMockFactory
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpec
-import sttp.client.SttpBackend
-import sttp.client.testing.SttpBackendStub
+import sttp.client3.SttpBackend
+import sttp.client3.testing.SttpBackendStub
 import sttp.model.StatusCode
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -22,8 +22,8 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
 
   private lazy val config = ConfigFactory.load("application.test")
 
-  private class TestFcmConfigProvider(backend: SttpBackend[Future, Nothing, Nothing]) extends DefaultFcmConfigProvider(config) {
-    override def constructBackend: SttpBackend[Future, Nothing, Nothing] = backend
+  private class TestFcmConfigProvider(backend: SttpBackend[Future, Any]) extends DefaultFcmConfigProvider(config) {
+    override def constructBackend: SttpBackend[Future, Any] = backend
   }
 
   implicit val exectutionContext: ExecutionContext = ExecutionContext.global
@@ -43,14 +43,14 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
 
         val token = "123ab"
         val message = FcmMessage(FcmNotification(body = Some("body")), FcmTokenTarget(token), apns = Some(FcmApnsConfig(Map(), Map(
-          "aps" → Map(
-            "badge" → 8
+          "aps" -> Map(
+            "badge" -> 8
           ).asJson
         ))))
 
         (firebaseAuthenticator.token _).expects().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
 
-        fcmSender.sendMessage(message).map { result ⇒
+        fcmSender.sendMessage(message).map { result =>
           (tokenRepository.deleteToken _).verify(*).never()
           result shouldBe Some("message-id-from-fcm")
         }
@@ -72,7 +72,7 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
         (firebaseAuthenticator.token _).expects().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
         (tokenRepository.deleteToken _).expects(token).returns(Future.successful(()))
 
-        fcmSender.sendMessage(FcmMessage(FcmNotification(body = Some("Test")), FcmTokenTarget(token))).map { result ⇒
+        fcmSender.sendMessage(FcmMessage(FcmNotification(body = Some("Test")), FcmTokenTarget(token))).map { result =>
           result shouldBe None
         }
       }
@@ -91,7 +91,7 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
         (firebaseAuthenticator.token _).expects().returns(Future.successful(Some(GoogleToken("token", "Bearer", 3600))))
         (tokenRepository.deleteToken _).expects(token).returns(Future.successful(()))
 
-        fcmSender.sendMessage(FcmMessage(FcmNotification(body = Some("Test")), FcmTokenTarget(token))).map { result ⇒
+        fcmSender.sendMessage(FcmMessage(FcmNotification(body = Some("Test")), FcmTokenTarget(token))).map { result =>
           result shouldBe None
         }
       }
@@ -152,13 +152,13 @@ class DefaultFcmSenderSpec extends AsyncWordSpec with Matchers with AsyncMockFac
       }
     }
 
-    "sendToken should not call the FCM API if not auth token can be obtained" in {
+    "sendToken should not call the FCM API if no auth token can be obtained" in {
       val token = "123ab"
 
       val tokenRepository: TokenRepository = mock[TokenRepository]
       val firebaseAuthenticator: FirebaseAuthenticator = mock[FirebaseAuthenticator]
       val backend = SttpBackendStub.asynchronousFuture
-        .whenRequestMatches(_ ⇒ fail("No request should be made"))
+        .whenRequestMatches(_ => fail("No request should be made"))
         .thenRespondOk()
 
       val fcmSender = new DefaultFcmSender(new TestFcmConfigProvider(backend), tokenRepository, firebaseAuthenticator)

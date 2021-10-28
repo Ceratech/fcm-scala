@@ -20,7 +20,7 @@ trait FcmTarget {
   val target: String
   val value: String
 
-  def asJson: (String, Json) = target → Json.fromString(value)
+  def asJson: (String, Json) = target -> Json.fromString(value)
 }
 
 case class FcmTokenTarget(value: String) extends FcmTarget {

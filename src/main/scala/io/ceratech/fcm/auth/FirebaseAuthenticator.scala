@@ -1,16 +1,14 @@
 package io.ceratech.fcm.auth
 
-import java.time.{Duration, Instant}
-
 import com.typesafe.scalalogging.Logger
 import io.ceratech.fcm.auth.GoogleJsonFormats._
 import io.ceratech.fcm.{FcmConfig, FcmConfigProvider, FcmSender}
-import javax.inject.{Inject, Singleton}
 import pdi.jwt.{JwtAlgorithm, JwtCirce, JwtClaim, JwtHeader}
-import sttp.client._
-import sttp.client.asynchttpclient.WebSocketHandler
-import sttp.client.circe._
+import sttp.client3._
+import sttp.client3.circe._
 
+import java.time.{Duration, Instant}
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -36,7 +34,7 @@ class DefaultFirebaseAuthenticator @Inject()(val fcmConfigProvider: FcmConfigPro
   private val Scope = "https://www.googleapis.com/auth/firebase.messaging"
   private val GrantType = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 
-  private implicit val backend: SttpBackend[Future, Nothing, Nothing] = fcmConfigProvider.constructBackend
+  private val backend: SttpBackend[Future, Any] = fcmConfigProvider.constructBackend
 
   private val logger: Logger = Logger(classOf[FcmSender])
 
@@ -53,17 +51,17 @@ class DefaultFirebaseAuthenticator @Inject()(val fcmConfigProvider: FcmConfigPro
       val assertion = createAssertion(time)
 
       basicRequest
-        .body("grant_type" → GrantType, "assertion" → assertion)
+        .body("grant_type" -> GrantType, "assertion" -> assertion)
         .post(uri"${fcmConfig.tokenEndpoint}")
         .response(asJson[GoogleToken])
-        .send()
-        .map { response ⇒
+        .send(backend)
+        .map { response =>
           response.body match {
-            case Right(obj) ⇒
+            case Right(obj) =>
               cachedToken = Some(obj)
               expires = time.plusSeconds(obj.expires_in)
               cachedToken
-            case Left(err) ⇒
+            case Left(err) =>
               logger.error(s"Error getting access token: $err")
               None
           }

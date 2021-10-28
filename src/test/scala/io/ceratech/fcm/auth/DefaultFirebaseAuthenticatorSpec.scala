@@ -10,8 +10,8 @@ import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.tagobjects.{Network, Slow}
 import org.scalatest.wordspec.AsyncWordSpec
-import sttp.client.testing.SttpBackendStub
-import sttp.client.{Response, SttpBackend}
+import sttp.client3.testing.SttpBackendStub
+import sttp.client3.{Response, SttpBackend}
 import sttp.model.StatusCode
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -25,8 +25,8 @@ class DefaultFirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with 
 
   private lazy val config = ConfigFactory.load("application.test")
 
-  private class TestFcmConfigProvider(backend: SttpBackend[Future, Nothing, Nothing]) extends DefaultFcmConfigProvider(config) {
-    override def constructBackend: SttpBackend[Future, Nothing, Nothing] = backend
+  private class TestFcmConfigProvider(backend: SttpBackend[Future, Any]) extends DefaultFcmConfigProvider(config) {
+    override def constructBackend: SttpBackend[Future, Any] = backend
   }
 
   implicit val exectutionContext: ExecutionContext = ExecutionContext.global
@@ -38,7 +38,7 @@ class DefaultFirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with 
         val configProvider = new DefaultFcmConfigProvider(config)
         val authenticator = new DefaultFirebaseAuthenticator(configProvider)
 
-        authenticator.token.map { maybeToken ⇒
+        authenticator.token.map { maybeToken =>
           maybeToken should not be empty
           maybeToken.value.token_type shouldBe "Bearer"
         }
@@ -50,10 +50,10 @@ class DefaultFirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with 
         var hit = false
         val backend = SttpBackendStub.asynchronousFuture
           .whenRequestMatchesPartial {
-            case _ if !hit ⇒
+            case _ if !hit =>
               hit = true
               Response.ok(googleToken.asJson.toString())
-            case _ ⇒
+            case _ =>
               Response.apply("FAIL", StatusCode.BadRequest)
           }
 
@@ -62,9 +62,9 @@ class DefaultFirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with 
         val authenticator = new DefaultFirebaseAuthenticator(configProvider)
 
         // Call 2 times; if the cache isn't used the second actual call to the mock server gives an 400; effectively returning a [[None]]
-        authenticator.token.flatMap { _ ⇒
+        authenticator.token.flatMap { _ =>
           authenticator.token
-        }.map { token ⇒
+        }.map { token =>
           token should not be empty
         }
       }
@@ -77,7 +77,7 @@ class DefaultFirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with 
         val configProvider = new TestFcmConfigProvider(backend)
         val authenticator = new DefaultFirebaseAuthenticator(configProvider)
 
-        authenticator.token.map { token ⇒
+        authenticator.token.map { token =>
           token shouldBe empty
         }
       }
@@ -90,7 +90,7 @@ class DefaultFirebaseAuthenticatorSpec extends AsyncWordSpec with Matchers with 
         val configProvider = new TestFcmConfigProvider(backend)
         val authenticator = new DefaultFirebaseAuthenticator(configProvider)
 
-        authenticator.token.map { token ⇒
+        authenticator.token.map { token =>
           token shouldBe empty
         }
       }

@@ -16,8 +16,8 @@ case class FcmConfig(endpoint: String, keyFile: String, validateOnly: Boolean, t
 
   lazy val googleCredential: GoogleCredential = {
     decode[GoogleCredential](Source.fromFile(keyFile).mkString) match {
-      case Right(obj) ⇒ obj
-      case _ ⇒ throw new IllegalStateException("Invalid keyFile specified")
+      case Right(obj) => obj
+      case _ => throw new IllegalStateException("Invalid keyFile specified")
     }
   }
 }

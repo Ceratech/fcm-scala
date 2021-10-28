@@ -11,7 +11,7 @@ lazy val root = (project in file(".")).
       organizationHomepage := Some(url("https://ceratech.io/")),
       homepage := Some(url("https://github.com/scalameta/sbt-scalafmt")),
       description := "FCM (Firebase Cloud Messaging) client for Scala.",
-      licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
+      licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
       scmInfo := Some(
         ScmInfo(
           url("https://github.com/Ceratech/fcm-scala"),
@@ -26,8 +26,8 @@ lazy val root = (project in file(".")).
           url = url("https://ceratech.io/")
         )
       ),
-      scalaVersion := "2.13.4",
-      crossScalaVersions := Seq("2.13.4", "2.12.13")
+      scalaVersion := "2.13.6",
+      crossScalaVersions := Seq("2.13.6", "2.12.15")
     )),
 
     autoScalaLibrary := true,

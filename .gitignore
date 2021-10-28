@@ -7,3 +7,5 @@ target
 /.settings
 /RUNNING_PID
 /src/test/resources/key.json
+**/.gradle
+/.bsp
